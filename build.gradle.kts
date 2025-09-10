@@ -19,7 +19,7 @@ java {
 	}
 }
 
-repositories {
+repositories {ew 
 	mavenCentral()
 }
 
@@ -34,6 +34,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+
 
     // DB
 	runtimeOnly("com.mysql:mysql-connector-j")
