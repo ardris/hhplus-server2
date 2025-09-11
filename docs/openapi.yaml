@@ -1340,5 +1340,5 @@ components:
 
 
 externalDocs:
-  description: Swagger Editor에서 API 스펙을 확인하세요
+  description: Swagger Editor에서 API 스펙을 확인하세요 (브라우저 새로고침 필요)
   url: https://editor.swagger.io/
