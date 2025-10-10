@@ -13,29 +13,29 @@ import org.springframework.http.HttpStatus;
  * 콘서트 예약 서비스의 기본 예외 클래스
  */
 public abstract class ConsertServiceException extends RuntimeException {
-    
+
     private final HttpStatus httpStatus;
     private final String errorCode;
-    
+
     // 예외 객체 생성
     protected ConsertServiceException(HttpStatus httpStatus, String errorCode, String message) {
         super(message);
         this.httpStatus = httpStatus;
         this.errorCode = errorCode;
     }
-    
+
     // 예외 객체 생성 (원인 )
     protected ConsertServiceException(HttpStatus httpStatus, String errorCode, String message, Throwable cause) {
         super(message, cause);
         this.httpStatus = httpStatus;
         this.errorCode = errorCode;
     }
-    
+
     // HTTP 상태 코드 조회
     public HttpStatus getHttpStatus() {
         return httpStatus;
     }
-    
+
     // 에러 코드 조회
     public String getErrorCode() {
         return errorCode;

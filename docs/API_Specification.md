@@ -7,10 +7,9 @@
 ##  관련 문서
 
 - [OpenAPI 3.0 스펙](./openapi.yaml) - API 스펙
-- [ERD 설계](./DBERD.png) - 데이터베이스 설계
+- [ERD 설계](./DBERD2.png) - 데이터베이스 설계
 - [인프라 구성도](./INfra1.png) - 시스템 아키텍처
 - [인프라 구성도 간단 설명](./Infra_spec.md)
-
 
 
 ### 1. 대기열 시스템

@@ -1,0 +1,388 @@
+// ===========================================
+// 콘서트 예약 서비스 - 개선된 데이터베이스 스키마
+// ===========================================
+
+// ===========================================
+// 1. 콘서트 관련 테이블
+// ===========================================
+
+Table concert_master_info {
+  concert_id varchar(50) [primary key, note: '콘서트 고유 식별자']
+  concert_name varchar(200) [not null, note: '콘서트 이름 (예: BTS 월드투어)']
+  concert_period_start date [not null, note: '콘서트 기간 시작일']
+  concert_period_end date [not null, note: '콘서트 기간 종료일']
+  is_active boolean [default: true, note: '예약 가능 여부']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`, note: '생성 시간']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`, note: '수정 시간']
+  
+  indexes {
+    (concert_period_start, concert_period_end) [name: 'idx_concert_period']
+    (is_active) [name: 'idx_concert_active']
+  }
+}
+
+Table concert_detail_info {
+  concert_id varchar(50) [primary key, note: '콘서트 고유 식별자']
+  description text [note: '콘서트 상세 설명']
+  image_url varchar(500) [note: '콘서트 이미지 URL']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+}
+
+// ===========================================
+// 2. 공연장 관련 테이블
+// ===========================================
+
+Table venue_info {
+  venue_id varchar(50) [primary key, note: '공연장 고유 식별자']
+  venue_name varchar(200) [not null, note: '공연장 이름']
+  venue_address varchar(500) [not null, note: '공연장 주소']
+  venue_city varchar(100) [not null, note: '도시']
+  venue_capacity integer [not null, note: '수용 인원']
+  venue_description text [note: '공연장 설명']
+  is_active boolean [default: true, note: '활성화 여부']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (venue_city) [name: 'idx_venue_city']
+    (is_active) [name: 'idx_venue_active']
+  }
+}
+
+// ===========================================
+// 3. 공연 관련 테이블
+// ===========================================
+
+Table performance_info {
+  performance_id varchar(50) [primary key, note: '공연 고유 식별자']
+  concert_id varchar(50) [not null, note: '콘서트 ID']
+  venue_id varchar(50) [not null, note: '공연장 ID']
+  performance_date date [not null, note: '공연 날짜']
+  performance_time time [not null, note: '공연 시간']
+  is_active boolean [default: true, note: '예약 가능 여부']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (concert_id) [name: 'idx_performance_concert']
+    (venue_id) [name: 'idx_performance_venue']
+    (performance_date) [name: 'idx_performance_date']
+    (is_active) [name: 'idx_performance_active']
+  }
+}
+
+Table performance_seat_pricing {
+  pricing_id varchar(50) [primary key, note: '가격 설정 고유 ID']
+  performance_id varchar(50) [not null, note: '공연 ID']
+  seat_grade varchar(20) [not null, note: '좌석 등급 (S, A, B, C)']
+  price decimal(10,2) [not null, note: '좌석 등급별 가격']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (performance_id, seat_grade) [unique, name: 'uk_performance_grade']
+    (performance_id) [name: 'idx_performance_pricing']
+  }
+}
+
+// ===========================================
+// 4. 좌석 관련 테이블
+// ===========================================
+
+Table seat_info {
+  seat_id varchar(20) [primary key, note: '좌석 고유 식별자']
+  venue_id varchar(50) [not null, note: '공연장 ID']
+  seat_number integer [not null, note: '좌석 번호']
+  seat_grade varchar(20) [not null, note: '좌석 등급 (S, A, B, C)']
+  seat_section varchar(50) [note: '좌석 구역 (1층, 2층, VIP 등)']
+  seat_row varchar(10) [note: '좌석 행']
+  seat_column varchar(10) [note: '좌석 열']
+  is_active boolean [default: true, note: '활성화 여부']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (venue_id, seat_number) [unique, name: 'uk_venue_seat']
+    (seat_grade) [name: 'idx_seat_grade']
+    (seat_section) [name: 'idx_seat_section']
+  }
+}
+
+Table seat_reservation_status {
+  status_id varchar(50) [primary key, note: '상태 고유 ID']
+  seat_id varchar(20) [not null, note: '좌석 ID']
+  performance_id varchar(50) [not null, note: '공연 ID']
+  seat_status varchar(20) [default: 'AVAILABLE', note: 'AVAILABLE, HOLD, SOLD, EXPIRED']
+  held_by_reservation_id varchar(50) [note: '임시 배정한 예약 ID']
+  hold_expires_at timestamp [note: '임시 배정 만료 시간']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (seat_id, performance_id) [unique, name: 'uk_seat_performance']
+    (performance_id, seat_status) [name: 'idx_performance_status']
+    (hold_expires_at) [name: 'idx_hold_expires']
+  }
+}
+
+// ===========================================
+// 5. 유저 관련 테이블
+// ===========================================
+
+Table user_master_info {
+  user_id varchar(50) [primary key, note: '사용자 고유 식별자']
+  username varchar(100) [not null, note: '사용자명']
+  email varchar(200) [unique, note: '이메일 주소']
+  phone_number varchar(20) [note: '전화번호']
+  balance decimal(12,2) [default: 0, note: '사용자 잔액']
+  is_active boolean [default: true, note: '계정 활성화 여부']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (email) [name: 'idx_user_email']
+    (is_active) [name: 'idx_user_active']
+  }
+}
+
+Table user_detail_info {
+  user_id varchar(50) [primary key, note: '사용자 고유 식별자']
+  gender varchar(10) [note: 'MALE, FEMALE, OTHER']
+  birth_date date [note: '생년월일']
+  address varchar(500) [note: '주소']
+  profile_image_url varchar(500) [note: '프로필 이미지 URL']
+  last_login_at timestamp [note: '마지막 로그인 시간']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+}
+
+Table user_history {
+  history_id bigint [primary key, increment, note: '히스토리 고유 ID']
+  user_id varchar(50) [not null, note: '사용자 ID']
+  transaction_type varchar(20) [not null, note: 'CHARGE, PAYMENT, REFUND']
+  amount decimal(10,2) [not null, note: '거래 금액']
+  balance_after decimal(12,2) [not null, note: '거래 후 잔액']
+  description varchar(500) [note: '거래 설명']
+  related_id varchar(50) [note: '관련 ID (payment_id, reservation_id 등)']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (user_id, created_at) [name: 'idx_user_history']
+    (transaction_type, created_at) [name: 'idx_transaction_type']
+  }
+}
+
+// ===========================================
+// 6. 예약 관련 테이블
+// ===========================================
+
+Table reservation_master_info {
+  reservation_id varchar(50) [primary key, note: '예약 고유 식별자']
+  user_id varchar(50) [not null, note: '예약한 사용자 ID']
+  performance_id varchar(50) [not null, note: '공연 ID']
+  seat_id varchar(20) [not null, note: '좌석 ID']
+  seat_grade varchar(20) [not null, note: '좌석 등급']
+  ticket_price decimal(10,2) [not null, note: '티켓 가격']
+  reservation_status varchar(20) [default: 'HOLD', note: 'HOLD, PAID, EXPIRED, CANCELLED, REFUNDED']
+  hold_expires_at timestamp [not null, note: '임시 배정 만료 시간 (5분 후)']
+  paid_at timestamp [note: '결제 완료 시간']
+  payment_id varchar(50) [note: '결제 ID']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (user_id, created_at) [name: 'idx_user_reservation']
+    (performance_id, seat_id) [unique, name: 'uk_performance_seat_reservation']
+    (reservation_status, hold_expires_at) [name: 'idx_reservation_status_expires']
+    (payment_id) [name: 'idx_reservation_payment']
+  }
+}
+
+Table reservation_history {
+  history_id bigint [primary key, increment, note: '히스토리 고유 ID']
+  reservation_id varchar(50) [not null, note: '예약 ID']
+  status_from varchar(20) [note: '이전 상태']
+  status_to varchar(20) [not null, note: '변경된 상태']
+  change_reason varchar(500) [note: '변경 사유']
+  performed_by varchar(50) [note: '변경 수행자']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (reservation_id, created_at) [name: 'idx_reservation_history']
+  }
+}
+
+// ===========================================
+// 7. 결제 관련 테이블
+// ===========================================
+
+Table payment_master_info {
+  payment_id varchar(50) [primary key, note: '결제 고유 식별자']
+  user_id varchar(50) [not null, note: '결제한 사용자 ID']
+  reservation_id varchar(50) [not null, note: '결제 대상 예약 ID']
+  amount decimal(10,2) [not null, note: '결제 금액']
+  payment_status varchar(20) [default: 'PENDING', note: 'PENDING, COMPLETED, FAILED, CANCELLED, REFUNDED']
+  payment_method varchar(20) [default: 'BALANCE', note: 'BALANCE, CARD, BANK_TRANSFER']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (user_id, created_at) [name: 'idx_user_payment']
+    (reservation_id) [unique, name: 'uk_payment_reservation']
+    (payment_status, created_at) [name: 'idx_payment_status']
+  }
+}
+
+Table payment_detail_info {
+  payment_id varchar(50) [primary key, note: '결제 고유 식별자']
+  transaction_id varchar(100) [note: '외부 거래 ID']
+  payment_gateway varchar(100) [note: '결제 게이트웨이']
+  gateway_transaction_id varchar(200) [note: '게이트웨이 거래 ID']
+  failure_reason text [note: '결제 실패 사유']
+  completed_at timestamp [note: '결제 완료 시간']
+  refunded_at timestamp [note: '환불 처리 시간']
+  refund_amount decimal(10,2) [default: 0, note: '환불 금액']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+}
+
+Table payment_history {
+  history_id bigint [primary key, increment, note: '히스토리 고유 ID']
+  payment_id varchar(50) [not null, note: '결제 ID']
+  status_from varchar(20) [note: '이전 상태']
+  status_to varchar(20) [not null, note: '변경된 상태']
+  change_reason varchar(500) [note: '변경 사유']
+  performed_by varchar(50) [note: '변경 수행자']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (payment_id, created_at) [name: 'idx_payment_history']
+  }
+}
+
+// ===========================================
+// 8. 대기열 관련 테이블
+// ===========================================
+
+Table queue_token_info {
+  token_id varchar(50) [primary key, note: '토큰 고유 식별자']
+  user_id varchar(50) [not null, note: '토큰 소유자 사용자 ID']
+  queue_position integer [not null, note: '발급 시점의 대기 순번']
+  total_waiting_users integer [not null, note: '총 대기자 수']
+  estimated_wait_time integer [note: '예상 대기 시간 (분 단위)']
+  is_active boolean [default: false, note: '활성 상태 여부']
+  issued_at timestamp [default: `CURRENT_TIMESTAMP`, note: '토큰 발급 시간']
+  expires_at timestamp [not null, note: '토큰 만료 시간 (15분 후)']
+  activated_at timestamp [note: '활성화 시간']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (user_id, is_active) [name: 'idx_user_token_active']
+    (queue_position) [name: 'idx_queue_position']
+    (expires_at) [name: 'idx_token_expires']
+    (is_active, expires_at) [name: 'idx_token_active_expires']
+  }
+}
+
+Table queue_history {
+  history_id bigint [primary key, increment, note: '히스토리 고유 ID']
+  token_id varchar(50) [not null, note: '토큰 ID']
+  action_type varchar(20) [not null, note: 'ISSUED, ACTIVATED, EXPIRED, USED']
+  queue_position integer [note: '대기 순번']
+  total_waiting_users integer [note: '총 대기자 수']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (token_id, created_at) [name: 'idx_queue_history']
+    (action_type, created_at) [name: 'idx_queue_action']
+  }
+}
+
+// ===========================================
+// 9. 시스템 관리 테이블
+// ===========================================
+
+Table system_config {
+  config_key varchar(100) [primary key, note: '설정 키']
+  config_value text [not null, note: '설정 값']
+  description varchar(500) [note: '설정 설명']
+  is_active boolean [default: true, note: '활성화 여부']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+}
+
+Table audit_log {
+  log_id bigint [primary key, increment, note: '로그 고유 ID']
+  user_id varchar(50) [note: '사용자 ID']
+  action varchar(100) [not null, note: '수행된 액션']
+  resource_type varchar(50) [note: '리소스 타입']
+  resource_id varchar(50) [note: '리소스 ID']
+  old_values json [note: '변경 전 값들']
+  new_values json [note: '변경 후 값들']
+  ip_address varchar(45) [note: 'IP 주소']
+  user_agent text [note: 'User Agent']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (user_id, created_at) [name: 'idx_audit_user']
+    (action, created_at) [name: 'idx_audit_action']
+    (resource_type, resource_id) [name: 'idx_audit_resource']
+  }
+}
+
+// ===========================================
+// 관계 정의 (Foreign Keys)
+// ===========================================
+
+// 콘서트 관련 관계
+Ref: concert_detail_info.concert_id > concert_master_info.concert_id
+Ref: performance_info.concert_id > concert_master_info.concert_id
+
+// 공연장 관련 관계
+Ref: seat_info.venue_id > venue_info.venue_id
+Ref: performance_info.venue_id > venue_info.venue_id
+
+// 공연 관련 관계
+Ref: performance_seat_pricing.performance_id > performance_info.performance_id
+Ref: seat_reservation_status.performance_id > performance_info.performance_id
+Ref: reservation_master_info.performance_id > performance_info.performance_id
+
+// 좌석 관련 관계
+Ref: seat_reservation_status.seat_id > seat_info.seat_id
+Ref: reservation_master_info.seat_id > seat_info.seat_id
+
+// 유저 관련 관계
+Ref: user_detail_info.user_id > user_master_info.user_id
+Ref: user_history.user_id > user_master_info.user_id
+Ref: queue_token_info.user_id > user_master_info.user_id
+Ref: reservation_master_info.user_id > user_master_info.user_id
+Ref: payment_master_info.user_id > user_master_info.user_id
+
+// 예약 관련 관계
+Ref: reservation_master_info.payment_id > payment_master_info.payment_id
+Ref: reservation_history.reservation_id > reservation_master_info.reservation_id
+Ref: seat_reservation_status.held_by_reservation_id > reservation_master_info.reservation_id
+
+// 결제 관련 관계
+Ref: payment_master_info.reservation_id > reservation_master_info.reservation_id
+Ref: payment_detail_info.payment_id > payment_master_info.payment_id
+Ref: payment_history.payment_id > payment_master_info.payment_id
+
+// 대기열 관련 관계
+Ref: queue_history.token_id > queue_token_info.token_id
+
+// ===========================================
+// 비즈니스 규칙 및 제약사항
+// ===========================================
+
+// 1. 좌석은 한 번에 하나의 예약만 가질 수 있음
+// 2. 예약은 5분간 임시 배정됨
+// 3. 토큰은 15분간 유효함
+// 4. 결제는 예약당 하나만 가능함
+// 5. 사용자 잔액은 음수가 될 수 없음
+// 6. 모든 상태 변경은 히스토리에 기록됨
+// 7. 공연별 좌석 등급별 가격 체계
+// 8. 콘서트는 여러 공연으로 구성됨
+// 9. 공연장별 좌석 관리
