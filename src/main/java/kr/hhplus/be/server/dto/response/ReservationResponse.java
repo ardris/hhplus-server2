@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 public class ReservationResponse {
     private String reservationId;
     private ConcertInfo concertInfo;
+    private VenueInfo venueInfo;
     private SeatInfo seatInfo;
     private String holdExpiresAt;
     private String status;
@@ -12,9 +13,10 @@ public class ReservationResponse {
     public ReservationResponse() {}
 
     public ReservationResponse(String reservationId, ConcertInfo concertInfo, 
-                             SeatInfo seatInfo, String holdExpiresAt, String status) {
+                             VenueInfo venueInfo, SeatInfo seatInfo, String holdExpiresAt, String status) {
         this.reservationId = reservationId;
         this.concertInfo = concertInfo;
+        this.venueInfo = venueInfo;
         this.seatInfo = seatInfo;
         this.holdExpiresAt = holdExpiresAt;
         this.status = status;
@@ -34,6 +36,14 @@ public class ReservationResponse {
 
     public void setConcertInfo(ConcertInfo concertInfo) {
         this.concertInfo = concertInfo;
+    }
+
+    public VenueInfo getVenueInfo() {
+        return venueInfo;
+    }
+
+    public void setVenueInfo(VenueInfo venueInfo) {
+        this.venueInfo = venueInfo;
     }
 
     public SeatInfo getSeatInfo() {

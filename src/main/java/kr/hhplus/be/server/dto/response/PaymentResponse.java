@@ -8,10 +8,11 @@ public class PaymentResponse {
     private PaymentInfo paymentInfo;
     private UserInfo userInfo;
 
-    public PaymentResponse() {}
+    public PaymentResponse() {
+    }
 
-    public PaymentResponse(String paymentId, ReservationInfo reservationInfo, 
-                         PaymentInfo paymentInfo, UserInfo userInfo) {
+    public PaymentResponse(String paymentId, ReservationInfo reservationInfo,
+            PaymentInfo paymentInfo, UserInfo userInfo) {
         this.paymentId = paymentId;
         this.reservationInfo = reservationInfo;
         this.paymentInfo = paymentInfo;
@@ -54,15 +55,20 @@ public class PaymentResponse {
         private String reservationId;
         private String concertDate;
         private String concertTitle;
+        private String venueName;
+        private String venueCity;
         private int seatNumber;
 
-        public ReservationInfo() {}
+        public ReservationInfo() {
+        }
 
-        public ReservationInfo(String reservationId, String concertDate, 
-                             String concertTitle, int seatNumber) {
+        public ReservationInfo(String reservationId, String concertDate,
+                String concertTitle, String venueName, String venueCity, int seatNumber) {
             this.reservationId = reservationId;
             this.concertDate = concertDate;
             this.concertTitle = concertTitle;
+            this.venueName = venueName;
+            this.venueCity = venueCity;
             this.seatNumber = seatNumber;
         }
 
@@ -90,6 +96,22 @@ public class PaymentResponse {
             this.concertTitle = concertTitle;
         }
 
+        public String getVenueName() {
+            return venueName;
+        }
+
+        public void setVenueName(String venueName) {
+            this.venueName = venueName;
+        }
+
+        public String getVenueCity() {
+            return venueCity;
+        }
+
+        public void setVenueCity(String venueCity) {
+            this.venueCity = venueCity;
+        }
+
         public int getSeatNumber() {
             return seatNumber;
         }
@@ -104,7 +126,8 @@ public class PaymentResponse {
         private String status;
         private String paidAt;
 
-        public PaymentInfo() {}
+        public PaymentInfo() {
+        }
 
         public PaymentInfo(BigDecimal amount, String status, String paidAt) {
             this.amount = amount;
@@ -142,7 +165,8 @@ public class PaymentResponse {
         private BigDecimal balanceBefore;
         private BigDecimal balanceAfter;
 
-        public UserInfo() {}
+        public UserInfo() {
+        }
 
         public UserInfo(String userId, BigDecimal balanceBefore, BigDecimal balanceAfter) {
             this.userId = userId;

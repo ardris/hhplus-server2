@@ -1,45 +1,79 @@
 package kr.hhplus.be.server.model;
 
+import kr.hhplus.be.server.dto.response.VenueInfo;
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 콘서트 정보 응답 모델
  * 콘서트 목록 조회 시 사용
  */
 public class ConcertResponse {
-    private String date;
-    private String title;
-    private BigDecimal ticketPrice;
-    
-    public ConcertResponse() {}
-    
-    public ConcertResponse(String date, String title, BigDecimal ticketPrice) {
-        this.date = date;
-        this.title = title;
-        this.ticketPrice = ticketPrice;
+    private String concertId;
+    private String concertName;
+    private String concertPeriodStart;
+    private String concertPeriodEnd;
+    private boolean isActive;
+    private List<VenueInfo> venues;
+
+    public ConcertResponse() {
     }
-    
-    public String getDate() {
-        return date;
+
+    public ConcertResponse(String concertId, String concertName, String concertPeriodStart,
+            String concertPeriodEnd, boolean isActive, List<VenueInfo> venues) {
+        this.concertId = concertId;
+        this.concertName = concertName;
+        this.concertPeriodStart = concertPeriodStart;
+        this.concertPeriodEnd = concertPeriodEnd;
+        this.isActive = isActive;
+        this.venues = venues;
     }
-    
-    public void setDate(String date) {
-        this.date = date;
+
+    public String getConcertId() {
+        return concertId;
     }
-    
-    public String getTitle() {
-        return title;
+
+    public void setConcertId(String concertId) {
+        this.concertId = concertId;
     }
-    
-    public void setTitle(String title) {
-        this.title = title;
+
+    public String getConcertName() {
+        return concertName;
     }
-    
-    public BigDecimal getTicketPrice() {
-        return ticketPrice;
+
+    public void setConcertName(String concertName) {
+        this.concertName = concertName;
     }
-    
-    public void setTicketPrice(BigDecimal ticketPrice) {
-        this.ticketPrice = ticketPrice;
+
+    public String getConcertPeriodStart() {
+        return concertPeriodStart;
+    }
+
+    public void setConcertPeriodStart(String concertPeriodStart) {
+        this.concertPeriodStart = concertPeriodStart;
+    }
+
+    public String getConcertPeriodEnd() {
+        return concertPeriodEnd;
+    }
+
+    public void setConcertPeriodEnd(String concertPeriodEnd) {
+        this.concertPeriodEnd = concertPeriodEnd;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(boolean active) {
+        isActive = active;
+    }
+
+    public List<VenueInfo> getVenues() {
+        return venues;
+    }
+
+    public void setVenues(List<VenueInfo> venues) {
+        this.venues = venues;
     }
 }
