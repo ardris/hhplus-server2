@@ -10,11 +10,12 @@ public class BalanceChargeResponse {
     private String transactionId;
     private String chargedAt;
 
-    public BalanceChargeResponse() {}
+    public BalanceChargeResponse() {
+    }
 
-    public BalanceChargeResponse(String userId, BigDecimal previousBalance, 
-                               BigDecimal chargeAmount, BigDecimal newBalance,
-                               String transactionId, String chargedAt) {
+    public BalanceChargeResponse(String userId, BigDecimal previousBalance,
+            BigDecimal chargeAmount, BigDecimal newBalance,
+            String transactionId, String chargedAt) {
         this.userId = userId;
         this.previousBalance = previousBalance;
         this.chargeAmount = chargeAmount;

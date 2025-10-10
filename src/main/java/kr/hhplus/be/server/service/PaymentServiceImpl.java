@@ -47,7 +47,7 @@ public class PaymentServiceImpl implements PaymentService {
     // 예약 결제 처리
     public Payment processPayment(String tokenId, String reservationId) {
         // 토큰 검증
-        var queueToken = queueService.validateToken(tokenId);
+        kr.hhplus.be.server.model.QueueToken queueToken = queueService.validateToken(tokenId);
         String userId = queueToken.getUserId();
         
         // 입력값 검증
@@ -146,7 +146,7 @@ public class PaymentServiceImpl implements PaymentService {
     // 결제 정보 조회
     public Payment getPayment(String tokenId, String paymentId) {
         // 토큰 검증
-        var queueToken = queueService.validateToken(tokenId);
+        kr.hhplus.be.server.model.QueueToken queueToken = queueService.validateToken(tokenId);
         String userId = queueToken.getUserId();
         
         // 결제 조회
@@ -168,7 +168,7 @@ public class PaymentServiceImpl implements PaymentService {
     // 사용자의 모든 결제 내역 조회
     public List<Payment> getUserPayments(String tokenId) {
         // 토큰 검증
-        var queueToken = queueService.validateToken(tokenId);
+        kr.hhplus.be.server.model.QueueToken queueToken = queueService.validateToken(tokenId);
         String userId = queueToken.getUserId();
         
         return paymentRepository.findByUserId(userId);
@@ -196,7 +196,7 @@ public class PaymentServiceImpl implements PaymentService {
     // 예약 결제 처리 (거래 내역 포함)
     public Payment processPaymentWithTransaction(String tokenId, String reservationId) {
         // 토큰 검증
-        var queueToken = queueService.validateToken(tokenId);
+        kr.hhplus.be.server.model.QueueToken queueToken = queueService.validateToken(tokenId);
         String userId = queueToken.getUserId();
         
         // 사용자가 활성 상태인지 확인

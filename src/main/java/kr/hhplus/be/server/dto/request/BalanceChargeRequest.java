@@ -5,7 +5,8 @@ import java.math.BigDecimal;
 public class BalanceChargeRequest {
     private BigDecimal amount;
 
-    public BalanceChargeRequest() {}
+    public BalanceChargeRequest() {
+    }
 
     public BalanceChargeRequest(BigDecimal amount) {
         this.amount = amount;
