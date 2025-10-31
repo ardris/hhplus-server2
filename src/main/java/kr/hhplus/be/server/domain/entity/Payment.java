@@ -1,5 +1,7 @@
 package kr.hhplus.be.server.domain.entity;
 
+import kr.hhplus.be.server.model.PaymentStatus;
+import kr.hhplus.be.server.model.PaymentMethod;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -31,6 +33,11 @@ public class Payment {
         this.paymentMethod = paymentMethod;
         this.status = PaymentStatus.PENDING;
         this.createdAt = LocalDateTime.now();
+    }
+
+    // 간단한 생성자 (기존 코드 호환성)
+    public Payment(String paymentId, String userId, String reservationId, BigDecimal amount) {
+        this(paymentId, userId, reservationId, amount, PaymentMethod.BALANCE);
     }
 
     /**
@@ -83,6 +90,29 @@ public class Payment {
     }
 
     /**
+     * 비즈니스 로직 6: 결제 상태 업데이트
+     */
+    public void updateStatus(PaymentStatus status) {
+        this.status = status;
+        if (status == PaymentStatus.COMPLETED || status == PaymentStatus.FAILED || status == PaymentStatus.CANCELLED) {
+            this.completedAt = LocalDateTime.now();
+        }
+    }
+
+    /**
+     * 비즈니스 로직 7: 결제 상태 업데이트 (외부에서 호출)
+     */
+    public void updateStatus(PaymentStatus status, String reason) {
+        this.status = status;
+        if (status == PaymentStatus.COMPLETED || status == PaymentStatus.FAILED || status == PaymentStatus.CANCELLED) {
+            this.completedAt = LocalDateTime.now();
+        }
+        if (status == PaymentStatus.FAILED) {
+            this.failureReason = reason;
+        }
+    }
+
+    /**
      * 정적 팩토리 메서드
      * - 도메인 규칙: 결제 ID 자동 생성
      */
@@ -127,25 +157,4 @@ public class Payment {
     public String getFailureReason() {
         return failureReason;
     }
-}
-
-/**
- * 결제 상태 열거형
- * - 도메인 규칙: 결제의 가능한 상태들
- */
-public enum PaymentStatus {
-    PENDING, // 대기 중
-    COMPLETED, // 완료
-    FAILED, // 실패
-    CANCELLED // 취소
-}
-
-/**
- * 결제 방법 열거형
- * - 도메인 규칙: 결제 가능한 방법들
- */
-public enum PaymentMethod {
-    BALANCE, // 잔액
-    CARD, // 카드
-    BANK_TRANSFER // 계좌이체
 }

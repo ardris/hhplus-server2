@@ -1,9 +1,12 @@
 package kr.hhplus.be.server.service;
 
 import kr.hhplus.be.server.model.Transaction;
-import kr.hhplus.be.server.model.User;
-import kr.hhplus.be.server.repository.TransactionRepository;
-import kr.hhplus.be.server.repository.UserRepository;
+import kr.hhplus.be.server.infrastructure.repository.JpaUserRepository;
+import kr.hhplus.be.server.infrastructure.repository.JpaTransactionRepository;
+import kr.hhplus.be.server.infrastructure.entity.UserEntity;
+import kr.hhplus.be.server.infrastructure.entity.TransactionEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
@@ -11,19 +14,21 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * 사용자 관리 서비스 구현체
  */
+@Service
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
-    private final TransactionRepository transactionRepository;
+    private final JpaUserRepository jpaUserRepository;
+    private final JpaTransactionRepository jpaTransactionRepository;
     private final QueueService queueService;
 
     // 사용자별 락 (동시성 제어)
     private final java.util.concurrent.ConcurrentHashMap<String, ReentrantLock> userLocks = new java.util.concurrent.ConcurrentHashMap<>();
 
-    public UserServiceImpl(UserRepository userRepository, TransactionRepository transactionRepository,
+    @Autowired
+    public UserServiceImpl(JpaUserRepository jpaUserRepository, JpaTransactionRepository jpaTransactionRepository,
             QueueService queueService) {
-        this.userRepository = userRepository;
-        this.transactionRepository = transactionRepository;
+        this.jpaUserRepository = jpaUserRepository;
+        this.jpaTransactionRepository = jpaTransactionRepository;
         this.queueService = queueService;
     }
 
@@ -45,16 +50,25 @@ public class UserServiceImpl implements UserService {
         userLock.lock();
         try {
             // 사용자 조회 또는 생성
-            User user = userRepository.findByUserId(userId).orElse(null);
-            if (user == null) {
-                user = new User(userId);
+            Optional<UserEntity> userEntityOptional = jpaUserRepository.findByUserId(userId);
+            UserEntity userEntity;
+            if (userEntityOptional.isEmpty()) {
+                userEntity = new UserEntity();
+                userEntity.setUserId(userId);
+                userEntity.setUsername("사용자" + userId);
+                userEntity.setBalance(BigDecimal.ZERO);
+                userEntity.setIsActive(true);
+                userEntity.setCreatedAt(java.time.LocalDateTime.now());
+            } else {
+                userEntity = userEntityOptional.get();
             }
 
             // 잔액 충전
-            user.chargeBalance(amount);
-            userRepository.update(user);
+            userEntity.setBalance(userEntity.getBalance().add(amount));
+            userEntity.setUpdatedAt(java.time.LocalDateTime.now());
+            jpaUserRepository.save(userEntity);
 
-            return user.getBalance();
+            return userEntity.getBalance();
 
         } finally {
             userLock.unlock();
@@ -69,9 +83,9 @@ public class UserServiceImpl implements UserService {
         String userId = queueToken.getUserId();
 
         // 사용자 조회
-        Optional<User> userOptional = userRepository.findByUserId(userId);
-        if (userOptional.isPresent()) {
-            return userOptional.get().getBalance();
+        Optional<UserEntity> userEntityOptional = jpaUserRepository.findByUserId(userId);
+        if (userEntityOptional.isPresent()) {
+            return userEntityOptional.get().getBalance();
         }
         return BigDecimal.ZERO;
     }
@@ -92,15 +106,19 @@ public class UserServiceImpl implements UserService {
         userLock.lock();
         try {
             // 사용자 조회
-            Optional<User> userOptional = userRepository.findByUserId(userId);
-            if (!userOptional.isPresent()) {
+            Optional<UserEntity> userEntityOptional = jpaUserRepository.findByUserId(userId);
+            if (userEntityOptional.isEmpty()) {
                 throw new IllegalArgumentException("존재하지 않는 사용자입니다.");
             }
-            User user = userOptional.get();
+            UserEntity userEntity = userEntityOptional.get();
 
             // 잔액 차감
-            user.deductBalance(amount);
-            userRepository.update(user);
+            if (userEntity.getBalance().compareTo(amount) < 0) {
+                throw new IllegalArgumentException("잔액이 부족합니다.");
+            }
+            userEntity.setBalance(userEntity.getBalance().subtract(amount));
+            userEntity.setUpdatedAt(java.time.LocalDateTime.now());
+            jpaUserRepository.save(userEntity);
 
         } finally {
             userLock.unlock();
@@ -117,10 +135,10 @@ public class UserServiceImpl implements UserService {
             return true;
         }
 
-        Optional<User> userOptional = userRepository.findByUserId(userId);
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            return user.hasSufficientBalance(amount);
+        Optional<UserEntity> userEntityOptional = jpaUserRepository.findByUserId(userId);
+        if (userEntityOptional.isPresent()) {
+            UserEntity userEntity = userEntityOptional.get();
+            return userEntity.getBalance().compareTo(amount) >= 0;
         }
         return false;
     }
@@ -133,13 +151,13 @@ public class UserServiceImpl implements UserService {
         String userId = queueToken.getUserId();
 
         // 사용자 조회
-        Optional<User> userOptional = userRepository.findByUserId(userId);
-        if (userOptional.isEmpty()) {
+        Optional<UserEntity> userEntityOptional = jpaUserRepository.findByUserId(userId);
+        if (userEntityOptional.isEmpty()) {
             throw new IllegalArgumentException("사용자를 찾을 수 없습니다.");
         }
 
-        User user = userOptional.get();
-        BigDecimal previousBalance = user.getBalance();
+        UserEntity userEntity = userEntityOptional.get();
+        BigDecimal previousBalance = userEntity.getBalance();
 
         // 사용자별 락 획득 (동시성 제어)
         ReentrantLock userLock = userLocks.computeIfAbsent(userId, k -> new ReentrantLock());
@@ -147,19 +165,22 @@ public class UserServiceImpl implements UserService {
 
         try {
             // 잔액 충전
-            user.chargeBalance(amount);
-            userRepository.update(user);
+            userEntity.setBalance(userEntity.getBalance().add(amount));
+            userEntity.setUpdatedAt(java.time.LocalDateTime.now());
+            jpaUserRepository.save(userEntity);
 
             // 거래 내역 생성
-            Transaction transaction = new Transaction(
-                    userId,
-                    Transaction.TransactionType.CHARGE,
-                    amount,
-                    user.getBalance(),
-                    "잔액 충전");
-            transactionRepository.save(transaction);
+            TransactionEntity transactionEntity = new TransactionEntity();
+            transactionEntity.setTransactionId("TXN-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+            transactionEntity.setUserId(userId);
+            transactionEntity.setTransactionType("CHARGE");
+            transactionEntity.setAmount(amount);
+            transactionEntity.setBalanceAfter(userEntity.getBalance());
+            transactionEntity.setDescription("잔액 충전");
+            transactionEntity.setCreatedAt(java.time.LocalDateTime.now());
+            jpaTransactionRepository.save(transactionEntity);
 
-            return transaction;
+            return transactionEntity.toDomain();
 
         } finally {
             userLock.unlock();
@@ -174,11 +195,16 @@ public class UserServiceImpl implements UserService {
         String userId = queueToken.getUserId();
 
         // 사용자 조회
-        Optional<User> userOptional = userRepository.findByUserId(userId);
-        if (userOptional.isEmpty()) {
+        Optional<UserEntity> userEntityOptional = jpaUserRepository.findByUserId(userId);
+        if (userEntityOptional.isEmpty()) {
             throw new IllegalArgumentException("사용자를 찾을 수 없습니다.");
         }
 
-        return transactionRepository.findRecentByUserId(userId, limit);
+        List<TransactionEntity> transactionEntities = jpaTransactionRepository.findRecentByUserId(userId, limit);
+        List<Transaction> transactions = new ArrayList<>();
+        for (TransactionEntity entity : transactionEntities) {
+            transactions.add(entity.toDomain());
+        }
+        return transactions;
     }
 }

@@ -1,7 +1,7 @@
 package kr.hhplus.be.server.dto.response;
 
 /**
- * 공연장 정보 응답 DTO
+ * 공연장 응답 DTO
  */
 public class VenueResponse {
     private String venueId;
@@ -12,12 +12,11 @@ public class VenueResponse {
     private String venueDescription;
     private boolean isActive;
 
-    public VenueResponse() {
-    }
+    public VenueResponse() {}
 
-    public VenueResponse(String venueId, String venueName, String venueAddress,
-            String venueCity, int venueCapacity, String venueDescription,
-            boolean isActive) {
+    public VenueResponse(String venueId, String venueName, String venueAddress, 
+                        String venueCity, int venueCapacity, String venueDescription, 
+                        boolean isActive) {
         this.venueId = venueId;
         this.venueName = venueName;
         this.venueAddress = venueAddress;
@@ -31,7 +30,7 @@ public class VenueResponse {
     public String getVenueId() {
         return venueId;
     }
-
+    
     public void setVenueId(String venueId) {
         this.venueId = venueId;
     }
@@ -39,7 +38,7 @@ public class VenueResponse {
     public String getVenueName() {
         return venueName;
     }
-
+    
     public void setVenueName(String venueName) {
         this.venueName = venueName;
     }
@@ -47,7 +46,7 @@ public class VenueResponse {
     public String getVenueAddress() {
         return venueAddress;
     }
-
+    
     public void setVenueAddress(String venueAddress) {
         this.venueAddress = venueAddress;
     }
@@ -55,7 +54,7 @@ public class VenueResponse {
     public String getVenueCity() {
         return venueCity;
     }
-
+    
     public void setVenueCity(String venueCity) {
         this.venueCity = venueCity;
     }
@@ -63,7 +62,7 @@ public class VenueResponse {
     public int getVenueCapacity() {
         return venueCapacity;
     }
-
+    
     public void setVenueCapacity(int venueCapacity) {
         this.venueCapacity = venueCapacity;
     }
@@ -71,7 +70,7 @@ public class VenueResponse {
     public String getVenueDescription() {
         return venueDescription;
     }
-
+    
     public void setVenueDescription(String venueDescription) {
         this.venueDescription = venueDescription;
     }
@@ -79,7 +78,7 @@ public class VenueResponse {
     public boolean isActive() {
         return isActive;
     }
-
+    
     public void setActive(boolean active) {
         isActive = active;
     }

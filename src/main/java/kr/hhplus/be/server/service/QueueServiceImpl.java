@@ -1,17 +1,25 @@
 package kr.hhplus.be.server.service;
 
-import kr.hhplus.be.server.exception.QueueTokenException;
-import kr.hhplus.be.server.model.QueueToken;
-import kr.hhplus.be.server.repository.QueueTokenRepository;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.springframework.stereotype.Service;
+
+import kr.hhplus.be.server.exception.QueueTokenException;
+import kr.hhplus.be.server.model.QueueToken;
+import kr.hhplus.be.server.repository.QueueTokenRepository;
+
 /**
  * 대기열 관리 서비스 구현체
  */
+@Service
 public class QueueServiceImpl implements QueueService {
 
     private static final int MAX_ACTIVE_USERS = 100;
@@ -191,5 +199,36 @@ public class QueueServiceImpl implements QueueService {
     // 사용자 활성 상태 확인
     public boolean isUserActive(String userId) {
         return activeUserSet.contains(userId);
+    }
+
+    @Override
+    public boolean isTokenValid(String userId, String tokenId) {
+        try {
+            QueueToken token = validateToken(tokenId);
+            return token.getUserId().equals(userId);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public void activateUser(String userId) {
+        if (activeUserSet.size() < MAX_ACTIVE_USERS) {
+            activeUserSet.add(userId);
+            enqueuedUserSet.remove(userId);
+            waitingUserQueue.remove(userId);
+        }
+    }
+
+    @Override
+    public void expireToken(String tokenId) {
+        try {
+            QueueToken token = validateToken(tokenId);
+            token.deactivate();
+            queueTokenRepository.update(token);
+            removeUserFromQueue(token.getUserId());
+        } catch (Exception e) {
+            // 토큰이 이미 만료되었거나 존재하지 않는 경우 무시
+        }
     }
 }

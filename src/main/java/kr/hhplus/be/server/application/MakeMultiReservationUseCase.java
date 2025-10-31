@@ -1,15 +1,16 @@
 package kr.hhplus.be.server.application;
 
-import kr.hhplus.be.server.domain.entity.Reservation;
-import kr.hhplus.be.server.domain.port.ReservationRepositoryPort;
-import kr.hhplus.be.server.domain.port.SeatPort;
-import kr.hhplus.be.server.domain.port.UserPort;
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+
+import kr.hhplus.be.server.domain.entity.Reservation;
+import kr.hhplus.be.server.domain.port.ReservationRepositoryPort;
+import kr.hhplus.be.server.domain.port.SeatPort;
+import kr.hhplus.be.server.domain.port.UserPort;
 
 /**
  * 다중 좌석 예약 Use Case (클린 아키텍처 - 애플리케이션 레이어)
@@ -52,6 +53,7 @@ public class MakeMultiReservationUseCase {
                         command.getUserId(),
                         command.getPerformanceId(),
                         seatId,
+                        "A", // seatGrade 기본값
                         command.getTicketPrice());
 
                 // 5. 좌석 임시 배정

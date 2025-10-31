@@ -22,6 +22,13 @@ public class PaymentException extends ConcertReservationException {
         private final BigDecimal currentBalance;
         private final BigDecimal requiredAmount;
         
+        // 기본 생성자
+        public InsufficientBalanceException() {
+            super("잔액이 부족합니다.");
+            this.currentBalance = BigDecimal.ZERO;
+            this.requiredAmount = BigDecimal.ZERO;
+        }
+        
         // 잔액 부족 예외
         public InsufficientBalanceException(BigDecimal currentBalance, BigDecimal requiredAmount) {
             super(String.format("잔액이 부족합니다. 현재 잔액: %s, 필요 금액: %s", currentBalance, requiredAmount));

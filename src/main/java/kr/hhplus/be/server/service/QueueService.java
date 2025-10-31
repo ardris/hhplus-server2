@@ -1,7 +1,6 @@
 package kr.hhplus.be.server.service;
 
 import kr.hhplus.be.server.model.QueueToken;
-import java.util.List;
 
 /**
  * 대기열 관리 서비스 인터페이스
@@ -36,6 +35,44 @@ public interface QueueService {
      * 만료된 토큰들을 정리합니다.
      */
     void cleanupExpiredTokens();
+
+    /**
+     * 토큰 유효성 검증 (사용자 ID와 토큰 ID로)
+     * 
+     * @param userId 사용자 ID
+     * @param tokenId 토큰 ID
+     * @return 유효한 토큰인지 여부
+     */
+    boolean isTokenValid(String userId, String tokenId);
+
+    /**
+     * 사용자를 활성 상태로 만듭니다.
+     * 
+     * @param userId 사용자 ID
+     */
+    void activateUser(String userId);
+
+    /**
+     * 사용자가 활성 상태인지 확인합니다.
+     * 
+     * @param userId 사용자 ID
+     * @return 활성 상태인지 여부
+     */
+    boolean isUserActive(String userId);
+
+    /**
+     * 토큰을 만료시킵니다.
+     * 
+     * @param tokenId 토큰 ID
+     */
+    void expireToken(String tokenId);
+
+    /**
+     * 사용자를 대기열에서 제거합니다.
+     * 
+     * @param userId 사용자 ID
+     */
+    void removeUserFromQueue(String userId);
 
     /**
      * 대기열 상태 정보

@@ -1,5 +1,6 @@
 package kr.hhplus.be.server.domain.entity;
 
+import kr.hhplus.be.server.model.ReservationStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,8 +14,9 @@ import java.util.UUID;
 public class Reservation {
     private String reservationId;
     private String userId;
-    private String concertId;
+    private String performanceId; // concertId 대신 performanceId 사용
     private String seatId;
+    private String seatGrade;
     private BigDecimal ticketPrice;
     private ReservationStatus status;
     private LocalDateTime holdExpiresAt;
@@ -23,12 +25,13 @@ public class Reservation {
     private LocalDateTime paidAt;
 
     // 생성자
-    public Reservation(String reservationId, String userId, String concertId, 
-                      String seatId, BigDecimal ticketPrice) {
+    public Reservation(String reservationId, String userId, String performanceId, 
+                      String seatId, String seatGrade, BigDecimal ticketPrice) {
         this.reservationId = reservationId;
         this.userId = userId;
-        this.concertId = concertId;
+        this.performanceId = performanceId;
         this.seatId = seatId;
+        this.seatGrade = seatGrade;
         this.ticketPrice = ticketPrice;
         this.status = ReservationStatus.HOLD;
         this.holdExpiresAt = LocalDateTime.now().plusMinutes(5);
@@ -91,34 +94,51 @@ public class Reservation {
      * 정적 팩토리 메서드
      * - 도메인 규칙: 예약 ID 자동 생성
      */
-    public static Reservation create(String userId, String concertId, String seatId, BigDecimal ticketPrice) {
+    public static Reservation create(String userId, String performanceId, String seatId, String seatGrade, BigDecimal ticketPrice) {
         String reservationId = "RES-" + UUID.randomUUID().toString().substring(0, 8);
-        return new Reservation(reservationId, userId, concertId, seatId, ticketPrice);
+        return new Reservation(reservationId, userId, performanceId, seatId, seatGrade, ticketPrice);
     }
 
     // Getters
     public String getReservationId() { return reservationId; }
     public String getUserId() { return userId; }
-    public String getConcertId() { return concertId; }
+    public String getPerformanceId() { return performanceId; }
     public String getSeatId() { return seatId; }
+    public String getSeatGrade() { return seatGrade; }
     public BigDecimal getTicketPrice() { return ticketPrice; }
     public ReservationStatus getStatus() { return status; }
     public LocalDateTime getHoldExpiresAt() { return holdExpiresAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public String getPaymentId() { return paymentId; }
     public LocalDateTime getPaidAt() { return paidAt; }
-}
 
-/**
- * 예약 상태 열거형
- * - 도메인 규칙: 예약의 가능한 상태들
- */
-public enum ReservationStatus {
-    AVAILABLE,    // 예약 가능
-    HOLD,         // 임시 배정 (5분)
-    PAID,         // 결제 완료
-    EXPIRED,      // 만료됨
-    CANCELLED,    // 취소됨
-    REFUNDED,     // 환불됨
-    COMPLETED     // 완료됨
+    /**
+     * HOLD 상태 확인
+     */
+    public boolean isHold() {
+        return this.status == ReservationStatus.HOLD;
+    }
+
+    /**
+     * 만료된 HOLD 확인
+     */
+    public boolean isHoldExpired() {
+        return isExpired();
+    }
+
+    /**
+     * HOLD 만료 처리
+     */
+    public void expireHold() {
+        if (this.status == ReservationStatus.HOLD) {
+            this.status = ReservationStatus.EXPIRED;
+        }
+    }
+
+    /**
+     * 콘서트 날짜 조회 (performanceId를 반환)
+     */
+    public String getConcertDate() {
+        return this.performanceId;
+    }
 }
