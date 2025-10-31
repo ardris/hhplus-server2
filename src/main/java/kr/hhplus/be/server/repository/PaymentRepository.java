@@ -1,6 +1,6 @@
 package kr.hhplus.be.server.repository;
 
-import kr.hhplus.be.server.model.Payment;
+import kr.hhplus.be.server.domain.entity.Payment;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 

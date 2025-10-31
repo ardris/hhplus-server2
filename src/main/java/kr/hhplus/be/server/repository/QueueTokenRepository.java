@@ -1,12 +1,15 @@
 package kr.hhplus.be.server.repository;
 
 import kr.hhplus.be.server.model.QueueToken;
+import org.springframework.stereotype.Repository;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 대기열 토큰을 관리하는 인메모리 저장소 추후 DB 연동 , Redis 사용해보자
  */
+@Repository
 public class QueueTokenRepository {
     
 
