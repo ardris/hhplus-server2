@@ -1,7 +1,6 @@
 package kr.hhplus.be.server.model;
 
 import kr.hhplus.be.server.dto.response.VenueInfo;
-import java.math.BigDecimal;
 import java.util.List;
 
 /**

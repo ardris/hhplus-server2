@@ -11,11 +11,18 @@ import kr.hhplus.be.server.domain.port.SeatPort;
 import kr.hhplus.be.server.domain.port.UserPort;
 import kr.hhplus.be.server.infrastructure.adapter.JpaReservationAdapter;
 import kr.hhplus.be.server.infrastructure.adapter.JpaPaymentAdapter;
-import kr.hhplus.be.server.infrastructure.adapter.SeatAdapter;
-import kr.hhplus.be.server.infrastructure.adapter.UserAdapter;
+import kr.hhplus.be.server.infrastructure.adapter.JpaSeatAdapter;
+import kr.hhplus.be.server.infrastructure.adapter.JpaUserAdapter;
+import kr.hhplus.be.server.infrastructure.repository.*;
+import kr.hhplus.be.server.infrastructure.entity.*;
 import kr.hhplus.be.server.dto.request.BalanceChargeRequest;
 import kr.hhplus.be.server.dto.request.ReservationRequest;
 import kr.hhplus.be.server.dto.response.BalanceChargeResponse;
+import kr.hhplus.be.server.dto.response.PagedResponse;
+import kr.hhplus.be.server.dto.response.ConcertResponse;
+import kr.hhplus.be.server.dto.response.VenueResponse;
+import kr.hhplus.be.server.dto.response.DatePerformanceResponse;
+import kr.hhplus.be.server.dto.response.ConcertSeatResponse;
 import kr.hhplus.be.server.dto.response.BalanceResponse;
 import kr.hhplus.be.server.dto.response.PaymentResponse;
 import kr.hhplus.be.server.dto.response.PerformanceInfo;
@@ -23,13 +30,14 @@ import kr.hhplus.be.server.dto.response.ReservationResponse;
 import kr.hhplus.be.server.dto.response.TokenResponse;
 import kr.hhplus.be.server.dto.response.VenueInfo;
 import kr.hhplus.be.server.model.Concert;
-import kr.hhplus.be.server.model.ConcertResponse;
-import kr.hhplus.be.server.model.Payment;
-import kr.hhplus.be.server.model.Reservation;
+import kr.hhplus.be.server.domain.entity.Payment;
+import kr.hhplus.be.server.domain.entity.Reservation;
 import kr.hhplus.be.server.model.Transaction;
-import kr.hhplus.be.server.model.User;
-import kr.hhplus.be.server.repository.*;
-import kr.hhplus.be.server.service.*;
+import kr.hhplus.be.server.service.QueueService;
+import kr.hhplus.be.server.service.ConcertService;
+import kr.hhplus.be.server.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,79 +50,72 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 1주차에 리뷰받은 내용 -> 컨트롤러 , 서비스 레이어의 구분을 명확히한다.
- * 
- * 컨트롤러는 요청을 받고, 서비스를 호출한다.
- * 서비스는 비즈니스 로직을 구현한다.
- * 저장소는 데이터를 저장하고 조회한다. (아직 JPA 쓰는건 아니겠지)
- * *
  * 콘서트 예약 서비스 REST API 컨트롤러
- * 
- * 예약과 결제는 클린아키텍처로 구현했고, 나머지는 일반적인 레이어드 아키텍처로 구성했어.
- * 컨트롤러는 요청을 받아서 적절한 서비스나 Use Case를 호출하는 역할을 해.
  */
 @RestController
-@RequestMapping("/api/v1") // 버전으로 관리하는게 좋다고 함.
+@RequestMapping("/api/v1")
 public class ReservationController {
 
-    // 클린아키텍처 Use Case들 (예약/결제용)
     private final MakeReservationUseCase makeReservationUseCase;
     private final ProcessPaymentUseCase processPaymentUseCase;
-
-    // 레이어드 아키텍처 서비스들 (다른 기능들)
     private final QueueService queueService;
     private final ConcertService concertService;
     private final UserService userService;
-    private final ReservationService reservationService;
-    private final PaymentService paymentService;
+    private final JpaConcertRepository jpaConcertRepository;
+    private final JpaUserRepository jpaUserRepository;
+    private final JpaVenueRepository jpaVenueRepository;
+    private final JpaPerformanceRepository jpaPerformanceRepository;
+    private final JpaReservationRepository jpaReservationRepository;
+    private final JpaPaymentRepository jpaPaymentRepository;
+    private final JpaSeatRepository jpaSeatRepository;
+    private final JpaSeatReservationStatusRepository jpaSeatReservationStatusRepository;
+    private final JpaQueueTokenRepository jpaQueueTokenRepository;
+    private final JpaPerformanceSeatPricingRepository jpaPerformanceSeatPricingRepository;
 
-    // 저장소들 (직접 접근)
-    private final ConcertRepository concertRepository;
-    private final UserRepository userRepository;
-    private final VenueRepository venueRepository;
-    private final PerformanceRepository performanceRepository;
+    @Autowired
+    public ReservationController(
+            // JPA Repository들 주입
+            JpaConcertRepository jpaConcertRepository,
+            JpaUserRepository jpaUserRepository,
+            JpaVenueRepository jpaVenueRepository,
+            JpaPerformanceRepository jpaPerformanceRepository,
+            JpaPerformanceSeatPricingRepository jpaPerformanceSeatPricingRepository,
+            JpaReservationRepository jpaReservationRepository,
+            JpaPaymentRepository jpaPaymentRepository,
+            JpaSeatRepository jpaSeatRepository,
+            JpaSeatReservationStatusRepository jpaSeatReservationStatusRepository,
+            JpaQueueTokenRepository jpaQueueTokenRepository,
+            // Service들 주입
+            QueueService queueService,
+            ConcertService concertService,
+            UserService userService) {
+        
+        // JPA Repository들 초기화
+        this.jpaConcertRepository = jpaConcertRepository;
+        this.jpaUserRepository = jpaUserRepository;
+        this.jpaVenueRepository = jpaVenueRepository;
+        this.jpaPerformanceRepository = jpaPerformanceRepository;
+        this.jpaPerformanceSeatPricingRepository = jpaPerformanceSeatPricingRepository;
+        this.jpaReservationRepository = jpaReservationRepository;
+        this.jpaPaymentRepository = jpaPaymentRepository;
+        this.jpaSeatRepository = jpaSeatRepository;
+        this.jpaSeatReservationStatusRepository = jpaSeatReservationStatusRepository;
+        this.jpaQueueTokenRepository = jpaQueueTokenRepository;
 
-    public ReservationController() {
-        // 저장소들 초기화 (현재는 인메모리로 구현)
-        QueueTokenRepository queueTokenRepository = new QueueTokenRepository();
-        ConcertRepository concertRepository = new ConcertRepository();
-        VenueRepository venueRepository = new VenueRepository();
-        PerformanceRepository performanceRepository = new PerformanceRepository();
-        SeatRepository seatRepository = new SeatRepository();
-        ReservationRepository reservationRepository = new ReservationRepository();
-        UserRepository userRepository = new UserRepository();
-        PaymentRepository paymentRepository = new PaymentRepository();
-        TransactionRepository transactionRepository = new TransactionRepository();
-
-        // 레이어드 아키텍처 서비스들 초기화
-        this.queueService = new QueueServiceImpl(queueTokenRepository);
-        this.concertService = new ConcertServiceImpl(concertRepository, seatRepository);
-        this.reservationService = new ReservationServiceImpl(reservationRepository, seatRepository, queueService);
-        this.userService = new UserServiceImpl(userRepository, transactionRepository, queueService);
-        this.paymentService = new PaymentServiceImpl(paymentRepository, reservationRepository, seatRepository,
-                userService, queueService);
-
-        // 저장소 필드 초기화
-        this.concertRepository = concertRepository;
-        this.userRepository = userRepository;
-        this.venueRepository = venueRepository;
-        this.performanceRepository = performanceRepository;
+        // Service들 초기화
+        this.queueService = queueService;
+        this.concertService = concertService;
+        this.userService = userService;
 
         // 클린아키텍처 포트와 어댑터 초기화
-        ReservationRepositoryPort reservationRepositoryPort = new JpaReservationAdapter(reservationRepository);
-        PaymentRepositoryPort paymentRepositoryPort = new JpaPaymentAdapter(paymentRepository);
-        SeatPort seatPort = new SeatAdapter(seatRepository);
-        UserPort userPort = new UserAdapter(userRepository);
+        ReservationRepositoryPort reservationRepositoryPort = new JpaReservationAdapter(jpaReservationRepository);
+        PaymentRepositoryPort paymentRepositoryPort = new JpaPaymentAdapter(jpaPaymentRepository);
+        SeatPort seatPort = new JpaSeatAdapter(jpaSeatRepository, jpaSeatReservationStatusRepository);
+        UserPort userPort = new JpaUserAdapter(jpaUserRepository);
 
         // 클린아키텍처 Use Case 초기화
         this.makeReservationUseCase = new MakeReservationUseCase(reservationRepositoryPort, seatPort, userPort);
-        this.processPaymentUseCase = new ProcessPaymentUseCase(paymentRepositoryPort, reservationRepositoryPort,
-                seatPort, userPort);
-
-        // 초기 데이터 설정
-        this.concertService.initializeConcerts();
-        this.venueRepository.initializeVenues();
-        this.performanceRepository.initializePerformances();
+        this.processPaymentUseCase = new ProcessPaymentUseCase(paymentRepositoryPort, reservationRepositoryPort, userService);
     }
 
     /**
@@ -153,25 +154,84 @@ public class ReservationController {
         queueService.validateToken(tokenId);
 
         // 페이지네이션 적용하여 콘서트 조회
-        List<Concert> concerts = concertService.getConcertsWithPagination(page, size, startDate, endDate);
-        long totalCount = concertService.getTotalConcertCount(startDate, endDate);
+        List<kr.hhplus.be.server.infrastructure.entity.ConcertEntity> allConcertEntities = jpaConcertRepository.findAll();
+        
+        // 날짜 필터링
+        List<kr.hhplus.be.server.infrastructure.entity.ConcertEntity> filteredEntities = new ArrayList<>();
+        for (kr.hhplus.be.server.infrastructure.entity.ConcertEntity entity : allConcertEntities) {
+            if (startDate != null && endDate != null) {
+                java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+                java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+                if (entity.getConcertPeriodStart().isAfter(start.minusDays(1)) && 
+                    entity.getConcertPeriodEnd().isBefore(end.plusDays(1))) {
+                    filteredEntities.add(entity);
+                }
+            } else {
+                filteredEntities.add(entity);
+            }
+        }
+        
+        // 페이지네이션 적용
+        int startIndex = page * size;
+        int endIndex = Math.min(startIndex + size, filteredEntities.size());
+        List<kr.hhplus.be.server.infrastructure.entity.ConcertEntity> paginatedEntities = 
+            filteredEntities.subList(startIndex, endIndex);
+        
+        List<Concert> concerts = new ArrayList<>();
+        for (kr.hhplus.be.server.infrastructure.entity.ConcertEntity entity : paginatedEntities) {
+            concerts.add(entity.toDomain());
+        }
+        
+        long totalCount = filteredEntities.size();
 
         List<ConcertResponse> concertResponses = new ArrayList<>();
         for (Concert currentConcert : concerts) {
-            // 해당 콘서트의 공연장 정보 조회
-            List<VenueInfo> venueInfoList = getVenueInfoListForConcert(currentConcert.getConcertId());
+            // 해당 콘서트의 첫 번째 공연 정보 조회
+            List<kr.hhplus.be.server.infrastructure.entity.PerformanceEntity> performanceEntities = 
+                jpaPerformanceRepository.findByConcertId(currentConcert.getConcertId());
+            
+            String venueName = "알 수 없는 공연장";
+            String venueCity = "알 수 없는 도시";
+            BigDecimal ticketPrice = BigDecimal.ZERO;
+            int availableSeats = 0;
+            
+            if (!performanceEntities.isEmpty()) {
+                kr.hhplus.be.server.infrastructure.entity.PerformanceEntity firstPerformance = performanceEntities.get(0);
+                
+                // 좌석 가격 조회 (DB 스키마에 맞게 수정)
+                List<PerformanceSeatPricingEntity> pricingEntities = 
+                    jpaPerformanceSeatPricingRepository.findByPerformanceId(firstPerformance.getPerformanceId());
+                if (!pricingEntities.isEmpty()) {
+                    ticketPrice = pricingEntities.get(0).getPrice(); // 첫 번째 등급 가격 사용
+                }
+                
+                // 공연장 정보 조회
+                Optional<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueOptional = 
+                    jpaVenueRepository.findById(firstPerformance.getVenueId());
+                if (venueOptional.isPresent()) {
+                    kr.hhplus.be.server.infrastructure.entity.VenueEntity venueEntity = venueOptional.get();
+                    venueName = venueEntity.getVenueName();
+                    venueCity = venueEntity.getVenueCity();
+                    // 실제 예약된 좌석 수 조회하여 차감
+                    int totalCapacity = venueEntity.getVenueCapacity();
+                    int reservedSeats = getReservedSeatCountForPerformance(firstPerformance.getPerformanceId());
+                    availableSeats = Math.max(0, totalCapacity - reservedSeats);
+                }
+            }
 
             ConcertResponse concertResponse = new ConcertResponse(
                     currentConcert.getConcertId(),
                     currentConcert.getConcertName(),
-                    currentConcert.getConcertPeriodStart().toString(),
-                    currentConcert.getConcertPeriodEnd().toString(),
-                    currentConcert.isActive(),
-                    venueInfoList);
+                    currentConcert.getConcertPeriodStart(),
+                    venueName,
+                    venueCity,
+                    ticketPrice,
+                    availableSeats,
+                    currentConcert.isActive());
             concertResponses.add(concertResponse);
         }
 
-        PagedResponse<ConcertResponse> response = new PagedResponse<>(
+        PagedResponse<ConcertResponse> response = new PagedResponse<ConcertResponse>(
                 concertResponses, page, size, totalCount);
 
         return ResponseEntity.ok(response);
@@ -204,7 +264,11 @@ public class ReservationController {
         LocalDate searchDate = LocalDate.parse(date);
 
         // 해당 날짜의 모든 공연 목록 조회
-        List<kr.hhplus.be.server.model.Performance> performanceList = performanceRepository.findByDate(searchDate);
+        List<kr.hhplus.be.server.infrastructure.entity.PerformanceEntity> performanceEntities = jpaPerformanceRepository.findByPerformanceDate(searchDate);
+        List<kr.hhplus.be.server.model.Performance> performanceList = new ArrayList<>();
+        for (kr.hhplus.be.server.infrastructure.entity.PerformanceEntity entity : performanceEntities) {
+            performanceList.add(entity.toDomain());
+        }
 
         // 공연 상세 정보를 담을 리스트 생성
         List<DatePerformanceResponse.PerformanceInfo> performanceInfoList = new ArrayList<>();
@@ -212,28 +276,28 @@ public class ReservationController {
         // 각 공연에 대해 상세 정보 조회 및 응답 객체 생성
         for (kr.hhplus.be.server.model.Performance currentPerformance : performanceList) {
             // 공연장 정보 조회
-            Optional<kr.hhplus.be.server.model.Venue> venueOptional = venueRepository
+            Optional<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueOptional = jpaVenueRepository
                     .findById(currentPerformance.getVenueId());
             String venueName = "알 수 없는 공연장";
             String venueCity = "알 수 없는 도시";
 
             if (venueOptional.isPresent()) {
-                kr.hhplus.be.server.model.Venue venueInformation = venueOptional.get();
-                venueName = venueInformation.getVenueName();
-                venueCity = venueInformation.getVenueCity();
+                kr.hhplus.be.server.infrastructure.entity.VenueEntity venueEntity = venueOptional.get();
+                venueName = venueEntity.getVenueName();
+                venueCity = venueEntity.getVenueCity();
             }
 
             // 콘서트 정보 조회
-            Optional<Concert> concertOptional = concertRepository.findById(currentPerformance.getConcertId());
+            Optional<kr.hhplus.be.server.infrastructure.entity.ConcertEntity> concertOptional = jpaConcertRepository.findById(currentPerformance.getConcertId());
             String concertName = "알 수 없는 콘서트";
 
             if (concertOptional.isPresent()) {
-                Concert concertInformation = concertOptional.get();
-                concertName = concertInformation.getConcertName();
+                kr.hhplus.be.server.infrastructure.entity.ConcertEntity concertEntity = concertOptional.get();
+                concertName = concertEntity.getConcertName();
             }
 
-            // 예약 가능한 좌석 수 조회
-            int availableSeatCount = getAvailableSeatCount(currentPerformance.getPerformanceId());
+            // 예약 가능한 좌석 수 조회 (현재 사용하지 않음)
+            // int availableSeatCount = getAvailableSeatCount(currentPerformance.getPerformanceId());
 
             // 공연 상세 정보 객체 생성
             DatePerformanceResponse.PerformanceInfo performanceDetailInfo = new DatePerformanceResponse.PerformanceInfo(
@@ -242,8 +306,7 @@ public class ReservationController {
                     venueName,
                     venueCity,
                     currentPerformance.getPerformanceTime().toString(),
-                    currentPerformance.getTicketPrice(),
-                    availableSeatCount);
+                    currentPerformance.getTicketPrice());
 
             performanceInfoList.add(performanceDetailInfo);
         }
@@ -269,11 +332,16 @@ public class ReservationController {
         queueService.validateToken(tokenId);
 
         // 공연장 목록 조회
-        List<kr.hhplus.be.server.model.Venue> venueList;
+        List<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueEntities;
         if (activeOnly) {
-            venueList = venueRepository.findActiveVenues();
+            venueEntities = jpaVenueRepository.findActiveVenues();
         } else {
-            venueList = venueRepository.findAll();
+            venueEntities = jpaVenueRepository.findAll();
+        }
+        
+        List<kr.hhplus.be.server.model.Venue> venueList = new ArrayList<>();
+        for (kr.hhplus.be.server.infrastructure.entity.VenueEntity entity : venueEntities) {
+            venueList.add(entity.toDomain());
         }
 
         // 날짜 범위가 지정된 경우, 해당 기간에 공연이 있는 공연장만 필터링
@@ -282,7 +350,7 @@ public class ReservationController {
             LocalDate parsedEndDate = LocalDate.parse(endDate);
 
             // 해당 기간에 공연이 있는 공연장 ID 목록 조회
-            List<String> venueIdListWithPerformances = performanceRepository
+            List<String> venueIdListWithPerformances = jpaPerformanceRepository
                     .findVenueIdsWithPerformancesInDateRange(parsedStartDate, parsedEndDate);
 
             // 공연이 있는 공연장만 필터링
@@ -339,25 +407,25 @@ public class ReservationController {
         queueService.validateToken(tokenId);
 
         // 공연장 정보 조회
-        Optional<kr.hhplus.be.server.model.Venue> venueOptional = venueRepository.findById(venueId);
+        Optional<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueOptional = jpaVenueRepository.findById(venueId);
         if (venueOptional.isEmpty()) {
             throw new IllegalArgumentException("해당 공연장을 찾을 수 없습니다.");
         }
 
-        kr.hhplus.be.server.model.Venue venueInformation = venueOptional.get();
+        kr.hhplus.be.server.infrastructure.entity.VenueEntity venueEntity = venueOptional.get();
 
         // 공연장 정보 추출
-        String venueId = venueInformation.getVenueId();
-        String venueName = venueInformation.getVenueName();
-        String venueAddress = venueInformation.getVenueAddress();
-        String venueCity = venueInformation.getVenueCity();
-        int venueCapacity = venueInformation.getVenueCapacity();
-        String venueDescription = venueInformation.getVenueDescription();
-        boolean isActive = venueInformation.isActive();
+        String venueIdFromEntity = venueEntity.getVenueId();
+        String venueName = venueEntity.getVenueName();
+        String venueAddress = venueEntity.getVenueAddress();
+        String venueCity = venueEntity.getVenueCity();
+        int venueCapacity = venueEntity.getVenueCapacity();
+        String venueDescription = venueEntity.getVenueDescription();
+        boolean isActive = venueEntity.isActive();
 
         // 응답 객체 생성
         VenueResponse venueResponse = new VenueResponse(
-                venueId,
+                venueIdFromEntity,
                 venueName,
                 venueAddress,
                 venueCity,
@@ -381,7 +449,11 @@ public class ReservationController {
         queueService.validateToken(tokenId);
 
         // 도시별 공연장 조회
-        List<kr.hhplus.be.server.model.Venue> venueList = venueRepository.findByCity(city);
+        List<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueEntities = jpaVenueRepository.findByCity(city);
+        List<kr.hhplus.be.server.model.Venue> venueList = new ArrayList<>();
+        for (kr.hhplus.be.server.infrastructure.entity.VenueEntity entity : venueEntities) {
+            venueList.add(entity.toDomain());
+        }
 
         if (venueList.isEmpty()) {
             throw new IllegalArgumentException("해당 도시에 공연장이 없습니다.");
@@ -428,7 +500,9 @@ public class ReservationController {
             @RequestParam String concertDate,
             @RequestParam String concertTitle) {
         queueService.validateToken(tokenId);
-        ConcertSeatResponse response = concertService.getConcertSeatDetails(concertDate, concertTitle);
+        // kr.hhplus.be.server.model.ConcertSeatResponse modelResponse = concertService.getConcertSeatDetails(concertDate, concertTitle);
+        // TODO: model.ConcertSeatResponse를 dto.response.ConcertSeatResponse로 변환
+        ConcertSeatResponse response = new ConcertSeatResponse(); // 임시
         return ResponseEntity.ok(response);
     }
 
@@ -487,12 +561,13 @@ public class ReservationController {
                 .execute(reservationCommand);
 
         // 공연장 정보 조회
-        Optional<kr.hhplus.be.server.model.Venue> venueOptional = venueRepository
+        Optional<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueOptional = jpaVenueRepository
                 .findById(currentPerformance.getVenueId());
         if (venueOptional.isEmpty()) {
             throw new IllegalArgumentException("공연장 정보를 찾을 수 없습니다.");
         }
-        kr.hhplus.be.server.model.Venue venueInformation = venueOptional.get();
+        kr.hhplus.be.server.infrastructure.entity.VenueEntity venueEntity = venueOptional.get();
+        // kr.hhplus.be.server.model.Venue venueInformation = venueEntity.toDomain();
 
         // 응답 생성
         ReservationResponse.ConcertInfo concertInformation = new ReservationResponse.ConcertInfo(
@@ -502,11 +577,11 @@ public class ReservationController {
 
         // 공연장 정보 생성
         VenueInfo venueInfo = new VenueInfo(
-                venueInformation.getVenueId(),
-                venueInformation.getVenueName(),
-                venueInformation.getVenueCity(),
-                venueInformation.getVenueAddress(),
-                venueInformation.getVenueCapacity(),
+                venueEntity.getVenueId(),
+                venueEntity.getVenueName(),
+                venueEntity.getVenueCity(),
+                venueEntity.getVenueAddress(),
+                venueEntity.getVenueCapacity(),
                 new ArrayList<>() // 공연장 정보만 필요하므로 빈 리스트
         );
 
@@ -547,20 +622,20 @@ public class ReservationController {
         String userId = queueToken.getUserId();
 
         // 사용자 정보 조회
-        Optional<User> userOptional = userRepository.findByUserId(userId);
+        Optional<kr.hhplus.be.server.infrastructure.entity.UserEntity> userOptional = jpaUserRepository.findByUserId(userId);
         if (userOptional.isEmpty()) {
             throw new IllegalArgumentException("사용자를 찾을 수 없습니다.");
         }
 
-        User userInformation = userOptional.get();
-        BigDecimal previousBalanceAmount = userInformation.getBalance().subtract(request.getAmount());
+        kr.hhplus.be.server.infrastructure.entity.UserEntity userEntity = userOptional.get();
+        BigDecimal previousBalanceAmount = userEntity.getBalance().subtract(request.getAmount());
 
         // 응답 생성
         BalanceChargeResponse chargeResponse = new BalanceChargeResponse(
                 userId,
                 previousBalanceAmount,
                 request.getAmount(),
-                userInformation.getBalance(),
+                userEntity.getBalance(),
                 chargeTransaction.getTransactionId(),
                 chargeTransaction.getCreatedAt().toString());
 
@@ -578,12 +653,12 @@ public class ReservationController {
         String userId = queueToken.getUserId();
 
         // 사용자 정보 조회
-        Optional<User> userOptional = userRepository.findByUserId(userId);
+        Optional<kr.hhplus.be.server.infrastructure.entity.UserEntity> userOptional = jpaUserRepository.findByUserId(userId);
         if (userOptional.isEmpty()) {
             throw new IllegalArgumentException("사용자를 찾을 수 없습니다.");
         }
 
-        User userInformation = userOptional.get();
+        kr.hhplus.be.server.infrastructure.entity.UserEntity userEntity = userOptional.get();
 
         // 최근 거래 내역 조회 (최대 10개)
         List<Transaction> recentTransactionList = userService.getUserTransactions(tokenId, 10);
@@ -602,8 +677,8 @@ public class ReservationController {
         // 응답 생성
         BalanceResponse balanceResponse = new BalanceResponse(
                 userId,
-                userInformation.getBalance(),
-                userInformation.getLastUpdatedAt().toString(),
+                userEntity.getBalance(),
+                userEntity.getUpdatedAt().toString(),
                 transactionInfoList);
 
         return ResponseEntity.ok(balanceResponse);
@@ -626,13 +701,12 @@ public class ReservationController {
         PaymentResult paymentResult = processPaymentUseCase.execute(paymentCommand);
 
         if (!paymentResult.isSuccess()) {
-            return ResponseEntity.badRequest().body(
-                    new PaymentResponse(null, reservationId, BigDecimal.ZERO, "FAILED", paymentResult.getMessage()));
+            return ResponseEntity.badRequest().body(null);
         }
 
         // 예약 정보 조회하여 공연장 정보 포함
-        Optional<kr.hhplus.be.server.domain.entity.Reservation> reservationOptional = jpaReservationAdapter
-                .findById(reservationId);
+        Optional<kr.hhplus.be.server.domain.entity.Reservation> reservationOptional = jpaReservationRepository
+                .findById(reservationId).map(ReservationEntity::toDomain);
         if (reservationOptional.isEmpty()) {
             throw new IllegalArgumentException("예약 정보를 찾을 수 없습니다.");
         }
@@ -640,42 +714,52 @@ public class ReservationController {
         kr.hhplus.be.server.domain.entity.Reservation reservationInformation = reservationOptional.get();
 
         // Performance 정보 조회
-        Optional<kr.hhplus.be.server.model.Performance> performanceOptional = performanceRepository
+        Optional<kr.hhplus.be.server.infrastructure.entity.PerformanceEntity> performanceOptional = jpaPerformanceRepository
                 .findById(reservationInformation.getPerformanceId());
         if (performanceOptional.isEmpty()) {
             throw new IllegalArgumentException("공연 정보를 찾을 수 없습니다.");
         }
 
-        kr.hhplus.be.server.model.Performance performanceInformation = performanceOptional.get();
+        kr.hhplus.be.server.infrastructure.entity.PerformanceEntity performanceEntity = performanceOptional.get();
 
         // 공연장 정보 조회
-        Optional<kr.hhplus.be.server.model.Venue> venueOptional = venueRepository
-                .findById(performanceInformation.getVenueId());
+        Optional<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueOptional = jpaVenueRepository
+                .findById(performanceEntity.getVenueId());
         if (venueOptional.isEmpty()) {
             throw new IllegalArgumentException("공연장 정보를 찾을 수 없습니다.");
         }
 
-        kr.hhplus.be.server.model.Venue venueInformation = venueOptional.get();
+        kr.hhplus.be.server.infrastructure.entity.VenueEntity venueEntity = venueOptional.get();
 
         // 콘서트 정보 조회
-        Optional<Concert> concertOptional = concertRepository.findById(performanceInformation.getConcertId());
+        Optional<kr.hhplus.be.server.infrastructure.entity.ConcertEntity> concertOptional = jpaConcertRepository.findById(performanceEntity.getConcertId());
         if (concertOptional.isEmpty()) {
             throw new IllegalArgumentException("콘서트 정보를 찾을 수 없습니다.");
         }
 
-        Concert concertInformation = concertOptional.get();
+        kr.hhplus.be.server.infrastructure.entity.ConcertEntity concertEntity = concertOptional.get();
 
+        // 좌석 가격 조회
+        BigDecimal ticketPrice = BigDecimal.ZERO;
+        Optional<PerformanceSeatPricingEntity> pricingOptional = 
+            jpaPerformanceSeatPricingRepository.findByPerformanceIdAndSeatGrade(
+                performanceEntity.getPerformanceId(), 
+                reservationInformation.getSeatGrade());
+        if (pricingOptional.isPresent()) {
+            ticketPrice = pricingOptional.get().getPrice();
+        }
+        
         // 응답 객체 생성
         PaymentResponse.ReservationInfo reservationInfo = new PaymentResponse.ReservationInfo(
                 reservationId,
-                performanceInformation.getPerformanceDate().toString(),
-                concertInformation.getConcertName(),
-                venueInformation.getVenueName(),
-                venueInformation.getVenueCity(),
+                performanceEntity.getPerformanceDate().toString(),
+                concertEntity.getConcertName(),
+                venueEntity.getVenueName(),
+                venueEntity.getVenueCity(),
                 Integer.parseInt(reservationInformation.getSeatId()));
 
         PaymentResponse.PaymentInfo paymentInfo = new PaymentResponse.PaymentInfo(
-                performanceInformation.getTicketPrice(),
+                ticketPrice,
                 "COMPLETED",
                 java.time.LocalDateTime.now().toString());
 
@@ -716,8 +800,17 @@ public class ReservationController {
     public ResponseEntity<Reservation> getReservation(
             @RequestHeader("X-QUEUE-TOKEN") String tokenId,
             @PathVariable String reservationId) {
-        Reservation reservation = reservationService.getReservation(tokenId, reservationId);
-        return ResponseEntity.ok(reservation);
+        // 토큰 검증
+        queueService.validateToken(tokenId);
+        
+        // 예약 조회
+        Optional<Reservation> reservationOptional = jpaReservationRepository.findById(reservationId)
+                .map(ReservationEntity::toDomain);
+        if (reservationOptional.isEmpty()) {
+            throw new IllegalArgumentException("예약을 찾을 수 없습니다.");
+        }
+        
+        return ResponseEntity.ok(reservationOptional.get());
     }
 
     /**
@@ -735,7 +828,11 @@ public class ReservationController {
         String userId = queueToken.getUserId();
 
         // 사용자의 예약 목록 조회
-        List<Reservation> userReservations = reservationService.getUserReservations(tokenId);
+        List<ReservationEntity> reservationEntities = jpaReservationRepository.findByUserId(userId);
+        List<Reservation> userReservations = new ArrayList<>();
+        for (ReservationEntity entity : reservationEntities) {
+            userReservations.add(entity.toDomain());
+        }
 
         // ReservationResponse로 변환 (공연장 정보 포함)
         List<ReservationResponse> reservationResponseList = new ArrayList<>();
@@ -782,7 +879,17 @@ public class ReservationController {
     @GetMapping("/payments")
     // 사용자의 모든 결제 내역 조회
     public ResponseEntity<List<Payment>> getUserPayments(@RequestHeader("X-QUEUE-TOKEN") String tokenId) {
-        List<Payment> payments = paymentService.getUserPayments(tokenId);
+        // 토큰 검증
+        kr.hhplus.be.server.model.QueueToken queueToken = queueService.validateToken(tokenId);
+        String userId = queueToken.getUserId();
+        
+        // 사용자의 결제 내역 조회
+        List<PaymentEntity> paymentEntities = jpaPaymentRepository.findByUserId(userId);
+        List<Payment> payments = new ArrayList<>();
+        for (PaymentEntity entity : paymentEntities) {
+            payments.add(entity.toDomain());
+        }
+        
         return ResponseEntity.ok(payments);
     }
 
@@ -792,19 +899,21 @@ public class ReservationController {
     private kr.hhplus.be.server.model.Performance findPerformanceByDateAndTitle(String concertDate,
             String concertTitle) {
         // 먼저 Concert를 찾아서 concertId를 얻음
-        Concert concertInformation = concertRepository.findByDateAndTitle(concertDate, concertTitle);
-        if (concertInformation == null) {
+        Optional<kr.hhplus.be.server.infrastructure.entity.ConcertEntity> concertOptional = jpaConcertRepository.findByDateAndTitle(concertDate, concertTitle);
+        if (concertOptional.isEmpty()) {
             return null;
         }
 
+        kr.hhplus.be.server.infrastructure.entity.ConcertEntity concertEntity = concertOptional.get();
+
         // 해당 Concert의 Performance들을 조회
-        List<kr.hhplus.be.server.model.Performance> performanceList = performanceRepository
-                .findByConcertId(concertInformation.getConcertId());
+        List<kr.hhplus.be.server.infrastructure.entity.PerformanceEntity> performanceEntities = jpaPerformanceRepository
+                .findByConcertId(concertEntity.getConcertId());
 
         // 같은 날짜의 Performance 찾기
-        for (kr.hhplus.be.server.model.Performance currentPerformance : performanceList) {
-            if (currentPerformance.getPerformanceDate().toString().equals(concertDate)) {
-                return currentPerformance;
+        for (kr.hhplus.be.server.infrastructure.entity.PerformanceEntity entity : performanceEntities) {
+            if (entity.getPerformanceDate().toString().equals(concertDate)) {
+                return entity.toDomain();
             }
         }
 
@@ -815,8 +924,8 @@ public class ReservationController {
      * Performance로부터 Concert 이름 조회
      */
     private String getConcertNameByPerformance(kr.hhplus.be.server.model.Performance performance) {
-        Optional<Concert> concertOptional = concertRepository.findById(performance.getConcertId());
-        return concertOptional.map(Concert::getConcertName).orElse("알 수 없는 콘서트");
+        Optional<kr.hhplus.be.server.infrastructure.entity.ConcertEntity> concertOptional = jpaConcertRepository.findById(performance.getConcertId());
+        return concertOptional.map(kr.hhplus.be.server.infrastructure.entity.ConcertEntity::getConcertName).orElse("알 수 없는 콘서트");
     }
 
     /**
@@ -824,24 +933,24 @@ public class ReservationController {
      */
     private int getAvailableSeatCount(String performanceId) {
         // 공연 정보 조회
-        Optional<kr.hhplus.be.server.model.Performance> performanceOptional = performanceRepository
+        Optional<kr.hhplus.be.server.infrastructure.entity.PerformanceEntity> performanceOptional = jpaPerformanceRepository
                 .findById(performanceId);
         if (performanceOptional.isEmpty()) {
             return 0;
         }
 
-        kr.hhplus.be.server.model.Performance currentPerformance = performanceOptional.get();
-        Optional<kr.hhplus.be.server.model.Venue> venueOptional = venueRepository
-                .findById(currentPerformance.getVenueId());
+        kr.hhplus.be.server.infrastructure.entity.PerformanceEntity performanceEntity = performanceOptional.get();
+        Optional<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueOptional = jpaVenueRepository
+                .findById(performanceEntity.getVenueId());
 
         if (venueOptional.isEmpty()) {
             return 0;
         }
 
-        kr.hhplus.be.server.model.Venue venueInformation = venueOptional.get();
+        kr.hhplus.be.server.infrastructure.entity.VenueEntity venueEntity = venueOptional.get();
 
-        // 공연장의 총 좌석 수 (현재는 50으로 고정)
-        int totalSeatCount = 50;
+        // 공연장의 총 좌석 수
+        int totalSeatCount = venueEntity.getVenueCapacity();
 
         // TODO: 실제 예약된 좌석 수를 조회하여 차감
         // 현재는 임시로 45개 좌석이 예약 가능하다고 가정
@@ -851,11 +960,25 @@ public class ReservationController {
     }
 
     /**
+     * 특정 공연의 예약된 좌석 수 조회
+     */
+    private int getReservedSeatCountForPerformance(String performanceId) {
+        // 해당 공연의 예약된 좌석 수 조회
+        List<kr.hhplus.be.server.infrastructure.entity.ReservationEntity> reservations = 
+            jpaReservationRepository.findByPerformanceIdAndStatus(performanceId, "PAID");
+        return reservations.size();
+    }
+
+    /**
      * 특정 콘서트의 공연장 정보 목록 조회
      */
     private List<VenueInfo> getVenueInfoListForConcert(String concertId) {
         // 해당 콘서트의 모든 공연 조회
-        List<kr.hhplus.be.server.model.Performance> performanceList = performanceRepository.findByConcertId(concertId);
+        List<kr.hhplus.be.server.infrastructure.entity.PerformanceEntity> performanceEntities = jpaPerformanceRepository.findByConcertId(concertId);
+        List<kr.hhplus.be.server.model.Performance> performanceList = new ArrayList<>();
+        for (kr.hhplus.be.server.infrastructure.entity.PerformanceEntity entity : performanceEntities) {
+            performanceList.add(entity.toDomain());
+        }
 
         // 공연장별로 그룹화
         Map<String, List<kr.hhplus.be.server.model.Performance>> venuePerformanceMap = new HashMap<>();
@@ -874,9 +997,9 @@ public class ReservationController {
             List<kr.hhplus.be.server.model.Performance> venuePerformances = entry.getValue();
 
             // 공연장 정보 조회
-            Optional<kr.hhplus.be.server.model.Venue> venueOptional = venueRepository.findById(venueId);
+            Optional<kr.hhplus.be.server.infrastructure.entity.VenueEntity> venueOptional = jpaVenueRepository.findById(venueId);
             if (venueOptional.isPresent()) {
-                kr.hhplus.be.server.model.Venue venueInformation = venueOptional.get();
+                kr.hhplus.be.server.infrastructure.entity.VenueEntity venueEntity = venueOptional.get();
 
                 // 공연 정보 목록 생성
                 List<PerformanceInfo> performanceInfoList = new ArrayList<>();
@@ -894,11 +1017,11 @@ public class ReservationController {
 
                 // 공연장 정보 생성
                 VenueInfo venueInfo = new VenueInfo(
-                        venueInformation.getVenueId(),
-                        venueInformation.getVenueName(),
-                        venueInformation.getVenueCity(),
-                        venueInformation.getVenueAddress(),
-                        venueInformation.getVenueCapacity(),
+                        venueEntity.getVenueId(),
+                        venueEntity.getVenueName(),
+                        venueEntity.getVenueCity(),
+                        venueEntity.getVenueAddress(),
+                        venueEntity.getVenueCapacity(),
                         performanceInfoList);
                 venueInfoList.add(venueInfo);
             }

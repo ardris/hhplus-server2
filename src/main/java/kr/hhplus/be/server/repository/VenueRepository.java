@@ -5,7 +5,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * 공연장 정보 저장소
@@ -28,15 +27,23 @@ public class VenueRepository {
     }
 
     public List<Venue> findByCity(String city) {
-        return venues.values().stream()
-            .filter(venue -> venue.getVenueCity().equals(city))
-            .collect(Collectors.toList());
+        List<Venue> result = new ArrayList<>();
+        for (Venue venue : venues.values()) {
+            if (venue.getVenueCity().equals(city)) {
+                result.add(venue);
+            }
+        }
+        return result;
     }
 
     public List<Venue> findActiveVenues() {
-        return venues.values().stream()
-            .filter(Venue::isActive)
-            .collect(Collectors.toList());
+        List<Venue> result = new ArrayList<>();
+        for (Venue venue : venues.values()) {
+            if (venue.isActive()) {
+                result.add(venue);
+            }
+        }
+        return result;
     }
 
     public void deleteById(String venueId) {

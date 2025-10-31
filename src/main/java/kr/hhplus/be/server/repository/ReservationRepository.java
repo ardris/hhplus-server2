@@ -1,6 +1,6 @@
 package kr.hhplus.be.server.repository;
 
-import kr.hhplus.be.server.model.Reservation;
+import kr.hhplus.be.server.domain.entity.Reservation;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 

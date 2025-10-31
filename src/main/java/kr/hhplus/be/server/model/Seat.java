@@ -141,16 +141,8 @@ public class Seat {
     }
     
     /**
-     * 좌석이 특정 사용자에게 임시 배정되어 있는지 확인합니다.
-     * 
-     * @param userId 확인할 사용자 ID
-     * @return true: 해당 사용자에게 임시 배정됨, false: 그렇지 않음
-     * 
-     * 이유: 사용자가 자신이 임시 배정받은 좌석에 대해 결제를 진행할 때 사용됩니다.
-     * HOLD 상태이면서 reservedByUserId가 일치하고, 아직 만료되지 않은 경우에만 true를 반환합니다.
-     * 다른 사용자가 임시 배정한 좌석에 접근하거나, 만료된 임시 배정에 접근하는 것을 방지합니다.
+     * 좌석이 특정 사용자에게 임시 배정되어 있는지 확인
      */
-    // 특정 사용자에게 임시 배정 여부 확인
     public boolean isHeldByUser(String userId) {
         return this.status == SeatStatus.HOLD && 
                this.reservedByUserId != null && 
@@ -214,4 +206,39 @@ public class Seat {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    /**
+     * 좌석 예약 (HOLD 상태로 변경)
+     */
+    public void reserveSeat(String userId) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("예약할 수 없는 좌석입니다.");
+        }
+        this.status = SeatStatus.HOLD;
+        this.reservedByUserId = userId;
+        this.holdExpiresAt = LocalDateTime.now().plusMinutes(5);
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    /**
+     * 좌석을 판매 완료 상태로 변경 (결제 완료 시)
+     */
+    public void sellSeat() {
+        if (this.status != SeatStatus.HOLD) {
+            throw new IllegalStateException("임시 배정된 좌석이 아닙니다.");
+        }
+        this.status = SeatStatus.SOLD;
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    /**
+     * 좌석을 다시 예약 가능 상태로 변경
+     */
+    public void releaseSeat() {
+        this.status = SeatStatus.AVAILABLE;
+        this.reservedByUserId = null;
+        this.holdExpiresAt = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+    
 }

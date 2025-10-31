@@ -77,6 +77,46 @@ public class SeatRepository {
         seatStore.remove(key);
     }
     
+    public boolean isSeatAvailable(String seatId) {
+        // 모든 좌석을 검사하여 해당 좌석이 사용 가능한지 확인
+        for (Seat seat : seatStore.values()) {
+            if (seat.getSeatId().equals(seatId) && seat.isAvailable()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void holdSeat(String seatId, String reservationId) {
+        // 좌석을 임시 배정 상태로 변경
+        for (Seat seat : seatStore.values()) {
+            if (seat.getSeatId().equals(seatId)) {
+                seat.holdSeat(reservationId, 5); // 5분 임시 배정
+                break;
+            }
+        }
+    }
+
+    public void sellSeat(String seatId) {
+        // 좌석을 판매 완료 상태로 변경
+        for (Seat seat : seatStore.values()) {
+            if (seat.getSeatId().equals(seatId)) {
+                seat.sellSeat();
+                break;
+            }
+        }
+    }
+
+    public void releaseSeat(String seatId) {
+        // 좌석을 사용 가능 상태로 변경
+        for (Seat seat : seatStore.values()) {
+            if (seat.getSeatId().equals(seatId)) {
+                seat.releaseSeat();
+                break;
+            }
+        }
+    }
+
     private String generateKey(String concertDate, String seatId) {
         return concertDate + "#" + seatId;
     }

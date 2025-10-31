@@ -1,7 +1,7 @@
 package kr.hhplus.be.server.model;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.math.BigDecimal;
 
 /**
  * 콘서트 정보를 관리하는 도메인 모델 (Performance 기반으로 확장)
@@ -11,31 +11,33 @@ import java.util.*;
  */
 public class Concert {
     
-    private String concertId;        // 콘서트 고유 식별자
-    private String concertName;      // 콘서트 이름
-    private LocalDate concertPeriodStart;   // 콘서트 기간 시작일
-    private LocalDate concertPeriodEnd;     // 콘서트 기간 종료일
-    private boolean isActive;        // 콘서트 활성화 상태 (true: 예약 가능, false: 예약 불가)
+    private String concertId;
+    private String concertName;
+    private LocalDate concertPeriodStart;
+    private LocalDate concertPeriodEnd;
+    private boolean isActive;
+    private java.time.LocalDateTime createdAt;
+    private java.time.LocalDateTime updatedAt;
     
-    /**
-     * 콘서트 객체를 생성합니다.
-     * 
-     * @param concertId 콘서트 고유 식별자
-     * @param concertName 콘서트 이름
-     * @param concertPeriodStart 콘서트 기간 시작일
-     * @param concertPeriodEnd 콘서트 기간 종료일
-     * 
-     * 이유: 새로운 콘서트를 등록할 때 호출됩니다.
-     * 생성 시 isActive는 기본적으로 true로 설정되어 예약이 가능한 상태가 됩니다.
-     * 실제 공연 정보는 Performance 테이블에서 관리됩니다.
-     */
-    // 콘서트 객체 생성
     public Concert(String concertId, String concertName, LocalDate concertPeriodStart, LocalDate concertPeriodEnd) {
         this.concertId = concertId;
         this.concertName = concertName;
         this.concertPeriodStart = concertPeriodStart;
         this.concertPeriodEnd = concertPeriodEnd;
-        this.isActive = true;  // 기본적으로 활성화 상태로 생성
+        this.isActive = true;
+        this.createdAt = java.time.LocalDateTime.now();
+        this.updatedAt = java.time.LocalDateTime.now();
+    }
+    
+    public Concert(String concertId, String concertName, LocalDate concertPeriodStart, LocalDate concertPeriodEnd, 
+                  boolean isActive, java.time.LocalDateTime createdAt, java.time.LocalDateTime updatedAt) {
+        this.concertId = concertId;
+        this.concertName = concertName;
+        this.concertPeriodStart = concertPeriodStart;
+        this.concertPeriodEnd = concertPeriodEnd;
+        this.isActive = isActive;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
     
     /**
@@ -91,5 +93,41 @@ public class Concert {
     
     public void setActive(boolean active) {
         isActive = active;
+    }
+    
+    public java.time.LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+    
+    public void setCreatedAt(java.time.LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+    
+    public java.time.LocalDateTime getLastUpdatedAt() {
+        return updatedAt;
+    }
+    
+    public void setUpdatedAt(java.time.LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public LocalDate getConcertDate() {
+        return concertPeriodStart;
+    }
+
+    public boolean isConcertDateAvailable() {
+        return LocalDate.now().isBefore(concertPeriodStart);
+    }
+
+    public String getDate() {
+        return concertPeriodStart.toString();
+    }
+
+    public String getTitle() {
+        return concertName;
+    }
+
+    public BigDecimal getTicketPrice() {
+        return BigDecimal.ZERO; // 기본값, 실제로는 Performance에서 가져와야 함
     }
 }

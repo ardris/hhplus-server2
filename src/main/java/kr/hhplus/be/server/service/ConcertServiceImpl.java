@@ -4,39 +4,44 @@ import kr.hhplus.be.server.model.Concert;
 import kr.hhplus.be.server.model.ConcertSeatResponse;
 import kr.hhplus.be.server.model.Seat;
 import kr.hhplus.be.server.model.SeatResponse;
-import kr.hhplus.be.server.repository.ConcertRepository;
-import kr.hhplus.be.server.repository.SeatRepository;
+import kr.hhplus.be.server.infrastructure.repository.JpaConcertRepository;
+import kr.hhplus.be.server.infrastructure.repository.JpaSeatRepository;
+import kr.hhplus.be.server.infrastructure.entity.ConcertEntity;
+import kr.hhplus.be.server.infrastructure.entity.SeatEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 콘서트 관리 서비스 구현체
  */
+@Service
 public class ConcertServiceImpl implements ConcertService {
     
-    private static final int TOTAL_SEAT_COUNT = 50;//좌석 50개 설정
-
-    //가격 한번 해보자
+    private static final int TOTAL_SEAT_COUNT = 50;
     private static final BigDecimal DEFAULT_TICKET_PRICE = new BigDecimal("100000");
     
-    private final ConcertRepository concertRepository;
-    private final SeatRepository seatRepository;
+    private final JpaConcertRepository jpaConcertRepository;
+    private final JpaSeatRepository jpaSeatRepository;
     
-    public ConcertServiceImpl(ConcertRepository concertRepository, SeatRepository seatRepository) {
-        this.concertRepository = concertRepository;
-        this.seatRepository = seatRepository;
+    @Autowired
+    public ConcertServiceImpl(JpaConcertRepository jpaConcertRepository, JpaSeatRepository jpaSeatRepository) {
+        this.jpaConcertRepository = jpaConcertRepository;
+        this.jpaSeatRepository = jpaSeatRepository;
     }
     
     @Override
-    // 예약 가능한 콘서트 목록 조회
     public List<Concert> getAvailableConcerts() {
-        return concertRepository.findAll();
+        return jpaConcertRepository.findActiveConcerts().stream()
+                .map(ConcertEntity::toDomain)
+                .collect(Collectors.toList());
     }
     
     @Override
-    // 특정 날짜 범위의 예약 가능한 콘서트 목록 조회
     public List<Concert> getAvailableConcertsByDateRange(String startDate, String endDate) {
         if (startDate == null || startDate.trim().isEmpty()) {
             throw new IllegalArgumentException("시작 날짜는 필수입니다.");
@@ -55,24 +60,28 @@ public class ConcertServiceImpl implements ConcertService {
             throw new IllegalArgumentException("시작 날짜는 종료 날짜보다 이전이어야 합니다.");
         }
         
-        List<Concert> allConcerts = concertRepository.findAll();
-        List<Concert> filteredConcerts = new ArrayList<>();
+        LocalDate start = LocalDate.parse(startDate);
+        LocalDate end = LocalDate.parse(endDate);
         
-        for (Concert concert : allConcerts) {
-            String concertDate = concert.getDate();
-            // 날짜 범위 내에 있는 콘서트만 필터링
-            if (concertDate.compareTo(startDate) >= 0 && concertDate.compareTo(endDate) <= 0) {
-                filteredConcerts.add(concert);
-            }
-        }
-        
-        return filteredConcerts;
+        return jpaConcertRepository.findConcertsByDate(start).stream()
+                .filter(concert -> {
+                    LocalDate concertStart = concert.getConcertPeriodStart();
+                    LocalDate concertEnd = concert.getConcertPeriodEnd();
+                    return !concertStart.isAfter(end) && !concertEnd.isBefore(start);
+                })
+                .map(ConcertEntity::toDomain)
+                .collect(Collectors.toList());
     }
     
     @Override
     // 예약 가능한 콘서트 날짜 목록 조회
     public List<String> getAvailableConcertDates() {
-        return concertRepository.getAvailableConcertDates();
+        return jpaConcertRepository.findActiveConcerts().stream()
+                .map(ConcertEntity::getConcertPeriodStart)
+                .map(LocalDate::toString)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
     }
     
     @Override
@@ -85,7 +94,9 @@ public class ConcertServiceImpl implements ConcertService {
         // 만료된 임시 배정 정리
         cleanupExpiredHolds(concertDate);
         
-        return seatRepository.getAvailableSeatIdsByConcertDate(concertDate);
+        // TODO: DB 스키마 변경으로 인해 좌석 조회 로직 재구현 필요
+        // SeatEntity는 이제 venue_id 기반이고, 예약 상태는 seat_reservation_status 테이블에서 관리
+        return new ArrayList<>(); // 임시 반환
     }
     
     @Override
@@ -102,13 +113,12 @@ public class ConcertServiceImpl implements ConcertService {
         cleanupExpiredHolds(concertDate);
         
         // 콘서트 정보 조회
-        Concert concert = concertRepository.findByDateAndTitle(concertDate, concertTitle);
-        if (concert == null) {
-            throw new IllegalArgumentException("해당 날짜와 제목의 콘서트를 찾을 수 없습니다.");
-        }
+        ConcertEntity concertEntity = jpaConcertRepository.findByDateAndTitle(concertDate, concertTitle)
+                .orElseThrow(() -> new IllegalArgumentException("해당 날짜와 제목의 콘서트를 찾을 수 없습니다."));
+        Concert concert = concertEntity.toDomain();
         
-        // 좌석 정보 조회
-        List<Seat> seats = seatRepository.findByConcertDate(concertDate);
+        // TODO: DB 스키마 변경으로 인해 좌석 조회 로직 재구현 필요
+        List<Seat> seats = new ArrayList<>(); // 임시 반환
         List<SeatResponse> seatResponses = new ArrayList<>();
         int availableCount = 0;
         
@@ -127,9 +137,9 @@ public class ConcertServiceImpl implements ConcertService {
         
         // 콘서트 정보 생성
         ConcertSeatResponse.ConcertInfo concertInfo = new ConcertSeatResponse.ConcertInfo(
-            concert.getDate(),
-            concert.getTitle(),
-            concert.getTicketPrice()
+            concert.getConcertPeriodStart().toString(),
+            concert.getConcertName(),
+            DEFAULT_TICKET_PRICE
         );
         
         return new ConcertSeatResponse(
@@ -152,32 +162,27 @@ public class ConcertServiceImpl implements ConcertService {
                 concertId,
                 "콘서트 " + (dayOffset + 1) + "일차",
                 concertDate,
-                TOTAL_SEAT_COUNT,
-                DEFAULT_TICKET_PRICE
+                concertDate.plusDays(1)
             );
             
-            concertRepository.save(concert);
+            ConcertEntity concertEntity = ConcertEntity.fromDomain(concert);
+            jpaConcertRepository.save(concertEntity);
             
-            // 좌석 생성
-            for (int seatNumber = 1; seatNumber <= TOTAL_SEAT_COUNT; seatNumber++) {
-                Seat seat = new Seat(String.valueOf(seatNumber), concertDate.toString());
-                seatRepository.save(seat);
-            }
+            // TODO: DB 스키마 변경으로 인해 좌석 생성 로직 재구현 필요
+            // SeatEntity는 이제 venue_id 기반이며, 공연장별로 좌석이 관리됨
+            // 좌석 생성은 공연장 등록 시 한 번만 수행하고, 
+            // 공연별 좌석 상태는 seat_reservation_status 테이블에서 관리
         }
     }
     
     /**
      * 만료된 임시 배정을 정리합니다.
+     * 
+     * TODO: DB 스키마 변경으로 인해 재구현 필요
+     * seat_reservation_status 테이블에서 만료된 HOLD 상태를 조회하고
+     * AVAILABLE 상태로 변경하는 로직으로 수정
      */
-    // 만료된 임시 배정 정리
     private void cleanupExpiredHolds(String concertDate) {
-        List<Seat> seats = seatRepository.findByConcertDate(concertDate);
-        
-        for (Seat seat : seats) {
-            if (seat.isHoldExpired()) {
-                seat.releaseHold();
-                seatRepository.update(seat);
-            }
-        }
+        // TODO: 스키마 변경 후 재구현
     }
 }

@@ -3,7 +3,6 @@ package kr.hhplus.be.server.repository;
 import kr.hhplus.be.server.model.Transaction;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * 거래 내역 인메모리 저장소
@@ -58,18 +57,30 @@ public class TransactionRepository {
      */
     public List<Transaction> findRecentByUserId(String userId, int limit) {
         List<Transaction> allTransactions = findByUserId(userId);
-        return allTransactions.stream()
-                             .limit(limit)
-                             .collect(Collectors.toList());
+        List<Transaction> result = new ArrayList<>();
+        int count = 0;
+        for (Transaction transaction : allTransactions) {
+            if (count >= limit) {
+                break;
+            }
+            result.add(transaction);
+            count++;
+        }
+        return result;
     }
     
     /**
      * 사용자의 특정 타입 거래 내역 조회
      */
     public List<Transaction> findByUserIdAndType(String userId, Transaction.TransactionType type) {
-        return findByUserId(userId).stream()
-                                  .filter(transaction -> transaction.getType() == type)
-                                  .collect(Collectors.toList());
+        List<Transaction> allTransactions = findByUserId(userId);
+        List<Transaction> result = new ArrayList<>();
+        for (Transaction transaction : allTransactions) {
+            if (transaction.getType() == type) {
+                result.add(transaction);
+            }
+        }
+        return result;
     }
     
     /**

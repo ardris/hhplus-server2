@@ -1,17 +1,15 @@
 package kr.hhplus.be.server.dto.response;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * 날짜별 공연 목록 응답 DTO
+ * 날짜별 공연 정보 응답 DTO
  */
 public class DatePerformanceResponse {
     private String date;
     private List<PerformanceInfo> performances;
 
-    public DatePerformanceResponse() {
-    }
+    public DatePerformanceResponse() {}
 
     public DatePerformanceResponse(String date, List<PerformanceInfo> performances) {
         this.date = date;
@@ -22,7 +20,7 @@ public class DatePerformanceResponse {
     public String getDate() {
         return date;
     }
-
+    
     public void setDate(String date) {
         this.date = date;
     }
@@ -30,7 +28,7 @@ public class DatePerformanceResponse {
     public List<PerformanceInfo> getPerformances() {
         return performances;
     }
-
+    
     public void setPerformances(List<PerformanceInfo> performances) {
         this.performances = performances;
     }
@@ -44,29 +42,25 @@ public class DatePerformanceResponse {
         private String venueName;
         private String venueCity;
         private String performanceTime;
-        private BigDecimal ticketPrice;
-        private int availableSeats;
+        private java.math.BigDecimal ticketPrice;
 
-        public PerformanceInfo() {
-        }
+        public PerformanceInfo() {}
 
-        public PerformanceInfo(String performanceId, String concertName, String venueName,
-                String venueCity, String performanceTime, BigDecimal ticketPrice,
-                int availableSeats) {
+        public PerformanceInfo(String performanceId, String concertName, String venueName, 
+                             String venueCity, String performanceTime, java.math.BigDecimal ticketPrice) {
             this.performanceId = performanceId;
             this.concertName = concertName;
             this.venueName = venueName;
             this.venueCity = venueCity;
             this.performanceTime = performanceTime;
             this.ticketPrice = ticketPrice;
-            this.availableSeats = availableSeats;
         }
 
         // Getters and Setters
         public String getPerformanceId() {
             return performanceId;
         }
-
+        
         public void setPerformanceId(String performanceId) {
             this.performanceId = performanceId;
         }
@@ -74,7 +68,7 @@ public class DatePerformanceResponse {
         public String getConcertName() {
             return concertName;
         }
-
+        
         public void setConcertName(String concertName) {
             this.concertName = concertName;
         }
@@ -82,7 +76,7 @@ public class DatePerformanceResponse {
         public String getVenueName() {
             return venueName;
         }
-
+        
         public void setVenueName(String venueName) {
             this.venueName = venueName;
         }
@@ -90,7 +84,7 @@ public class DatePerformanceResponse {
         public String getVenueCity() {
             return venueCity;
         }
-
+        
         public void setVenueCity(String venueCity) {
             this.venueCity = venueCity;
         }
@@ -98,25 +92,17 @@ public class DatePerformanceResponse {
         public String getPerformanceTime() {
             return performanceTime;
         }
-
+        
         public void setPerformanceTime(String performanceTime) {
             this.performanceTime = performanceTime;
         }
 
-        public BigDecimal getTicketPrice() {
+        public java.math.BigDecimal getTicketPrice() {
             return ticketPrice;
         }
-
-        public void setTicketPrice(BigDecimal ticketPrice) {
+        
+        public void setTicketPrice(java.math.BigDecimal ticketPrice) {
             this.ticketPrice = ticketPrice;
-        }
-
-        public int getAvailableSeats() {
-            return availableSeats;
-        }
-
-        public void setAvailableSeats(int availableSeats) {
-            this.availableSeats = availableSeats;
         }
     }
 }

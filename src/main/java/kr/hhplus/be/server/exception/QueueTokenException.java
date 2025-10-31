@@ -18,16 +18,16 @@ public class QueueTokenException extends ConcertReservationException {
     }
     
     public static class InvalidTokenException extends ConcertReservationException {
-        // 유효하지 않은 토큰 예외 (498 Invalid Token - 커스텀 토큰 오류)
+        // 유효하지 않은 토큰 예외 (401 Unauthorized - 인증 실패)
         public InvalidTokenException() {
-            super(HttpStatus.valueOf(498), "INVALID_TOKEN", "유효하지 않은 토큰입니다.");
+            super(HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "유효하지 않은 토큰입니다.");
         }
     }
     
     public static class TokenExpiredException extends ConcertReservationException {
-        // 토큰 만료 예외 (499 Token Required - 커스텀 토큰 만료)
+        // 토큰 만료 예외 (401 Unauthorized - 토큰 만료)
         public TokenExpiredException() {
-            super(HttpStatus.valueOf(499), "TOKEN_EXPIRED", "토큰이 만료되었습니다. 다시 발급받아 주세요.");
+            super(HttpStatus.UNAUTHORIZED, "TOKEN_EXPIRED", "토큰이 만료되었습니다. 다시 발급받아 주세요.");
         }
     }
     

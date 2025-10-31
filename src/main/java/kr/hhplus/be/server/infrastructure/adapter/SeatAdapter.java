@@ -2,13 +2,15 @@ package kr.hhplus.be.server.infrastructure.adapter;
 
 import kr.hhplus.be.server.domain.port.SeatPort;
 import kr.hhplus.be.server.repository.SeatRepository;
-import org.springframework.stereotype.Repository;
 
 /**
  * 좌석 관련 포트를 구현하는 어댑터입니다.
  * 기존 SeatRepository를 사용하여 도메인 레이어와 기존 Repository를 연결합니다.
+ * 
+ * NOTE: 레거시 구현체로, 현재는 JpaSeatAdapter를 사용합니다.
+ * 빈으로 등록하지 않기 위해 @Repository 어노테이션을 제거했습니다.
  */
-@Repository
+// @Repository - 레거시, 사용 안 함
 public class SeatAdapter implements SeatPort {
     private final SeatRepository seatRepository;
 

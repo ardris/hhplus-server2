@@ -11,25 +11,29 @@ import java.time.LocalDateTime;
  */
 public class User {
     
-    private String userId;           // 사용자 고유 식별자
-    private BigDecimal balance;      // 사용자 잔액 (BigDecimal 사용 이유: 정확한 금액 계산을 위해)
-    private LocalDateTime createdAt; // 사용자 생성 시간
-    private LocalDateTime updatedAt; // 사용자 정보 마지막 수정 시간
+    private String userId;
+    private String name;
+    private String email;
+    private BigDecimal balance;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     
-    /**
-     * 사용자 객체를 생성합니다.
-     * 
-     * @param userId 사용자 고유 식별자
-     * 
-     * 이유: 새로운 사용자가 서비스에 가입할 때 호출됩니다.
-     * 초기 잔액은 0으로 설정하고, 생성/수정 시간을 현재 시간으로 기록합니다.
-     */
-    // 사용자 객체 생성
     public User(String userId) {
         this.userId = userId;
-        this.balance = BigDecimal.ZERO;  // 초기 잔액은 0원
+        this.name = "사용자" + userId;
+        this.email = null;
+        this.balance = BigDecimal.ZERO;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+    }
+    
+    public User(String userId, String name, String email, BigDecimal balance, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.userId = userId;
+        this.name = name;
+        this.email = email;
+        this.balance = balance;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
     
 
@@ -120,5 +124,21 @@ public class User {
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    public String getName() {
+        return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    public String getEmail() {
+        return email;
+    }
+    
+    public void setEmail(String email) {
+        this.email = email;
     }
 }
